@@ -26,7 +26,7 @@ export function Dashboard() {
   };
 
   return (
-    <div className="flex h-screen w-full">
+    <>
       <AppSidebar 
         activeSection={activeSection} 
         onSectionChange={setActiveSection} 
@@ -40,6 +40,6 @@ export function Dashboard() {
           {renderContent()}
         </main>
       </div>
-    </div>
+    </>
   );
 }
