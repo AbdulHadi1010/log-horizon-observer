@@ -1,12 +1,12 @@
 
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { Dashboard } from "@/components/Dashboard";
+import { ResolvixDashboard } from "@/components/resolvix/ResolvixDashboard";
 
 const Index = () => {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
-        <Dashboard />
+        <ResolvixDashboard />
       </div>
     </SidebarProvider>
   );
