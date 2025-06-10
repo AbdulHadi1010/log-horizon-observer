@@ -1,16 +1,5 @@
 
 import { 
-  Sidebar, 
-  SidebarContent, 
-  SidebarGroup, 
-  SidebarGroupContent, 
-  SidebarGroupLabel, 
-  SidebarMenu, 
-  SidebarMenuButton, 
-  SidebarMenuItem,
-  SidebarHeader
-} from "@/components/ui/sidebar";
-import { 
   Home, 
   FileText, 
   Ticket, 
@@ -19,47 +8,41 @@ import {
   Bell,
   Users
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const menuItems = [
   {
     title: "Dashboard",
-    url: "#dashboard",
     icon: Home,
     id: "dashboard"
   },
   {
     title: "Logs Explorer",
-    url: "#logs", 
     icon: FileText,
     id: "logs"
   },
   {
     title: "Tickets",
-    url: "#tickets",
     icon: Ticket,
     id: "tickets"
   },
   {
     title: "Monitoring",
-    url: "#monitoring",
     icon: Activity,
     id: "monitoring"
   },
   {
     title: "Notifications",
-    url: "#notifications",
     icon: Bell,
     id: "notifications"
   },
   {
     title: "Team",
-    url: "#team",
     icon: Users,
     id: "team"
   },
   {
     title: "Settings",
-    url: "#settings",
     icon: Settings,
     id: "settings"
   }
@@ -68,47 +51,57 @@ const menuItems = [
 interface ResolvixSidebarProps {
   activeSection?: string;
   onSectionChange?: (section: string) => void;
+  expanded?: boolean;
 }
 
-export function ResolvixSidebar({ activeSection = "dashboard", onSectionChange }: ResolvixSidebarProps) {
+export function ResolvixSidebar({ 
+  activeSection = "dashboard", 
+  onSectionChange,
+  expanded = false 
+}: ResolvixSidebarProps) {
   return (
-    <Sidebar className="border-r">
-      <SidebarHeader className="p-4 border-b">
+    <div className="h-full bg-card border-r shadow-lg">
+      {/* Header */}
+      <div className="p-4 border-b">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
             <span className="text-primary-foreground font-bold text-sm">R</span>
           </div>
-          <div>
-            <h2 className="font-semibold text-sm">Resolvix</h2>
-            <p className="text-xs text-muted-foreground">v1.0.0</p>
-          </div>
+          {expanded && (
+            <div className="transition-opacity duration-200">
+              <h2 className="font-semibold text-sm">Resolvix</h2>
+              <p className="text-xs text-muted-foreground">v1.0.0</p>
+            </div>
+          )}
         </div>
-      </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Platform</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild
-                    className={activeSection === item.id ? "bg-accent" : ""}
-                  >
-                    <button
-                      onClick={() => onSectionChange?.(item.id)}
-                      className="w-full flex items-center gap-2"
-                    >
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </button>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-    </Sidebar>
+      </div>
+
+      {/* Navigation Menu */}
+      <nav className="p-2">
+        <div className="space-y-1">
+          {menuItems.map((item) => (
+            <button
+              key={item.title}
+              onClick={() => onSectionChange?.(item.id)}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                "hover:bg-accent hover:text-accent-foreground",
+                activeSection === item.id && "bg-accent text-accent-foreground",
+                !expanded && "justify-center"
+              )}
+              title={!expanded ? item.title : undefined}
+              aria-label={item.title}
+            >
+              <item.icon className="w-5 h-5 flex-shrink-0" />
+              {expanded && (
+                <span className="transition-opacity duration-200 text-sm">
+                  {item.title}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </nav>
+    </div>
   );
 }
