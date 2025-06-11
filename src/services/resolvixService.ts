@@ -27,6 +27,17 @@ export interface Ticket {
   tags?: string[];
   created_at?: string;
   updated_at?: string;
+  log?: LogEntry;
+  created_by_profile?: {
+    id: string;
+    full_name?: string;
+    email?: string;
+  };
+  assignee_profile?: {
+    id: string;
+    full_name?: string;
+    email?: string;
+  };
 }
 
 export interface ChatMessage {
@@ -36,6 +47,11 @@ export interface ChatMessage {
   message: string;
   attachments?: Record<string, any>;
   created_at?: string;
+  user?: {
+    id: string;
+    full_name?: string;
+    email?: string;
+  };
 }
 
 export interface Recommendation {
@@ -48,7 +64,36 @@ export interface Recommendation {
 }
 
 export class ResolvixService {
-  // Log ingestion
+  // Log operations using direct Supabase client
+  static async getLogs(filters?: {
+    level?: LogLevel;
+    source?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    let query = supabase
+      .from('logs')
+      .select('*')
+      .order('timestamp', { ascending: false });
+
+    if (filters?.level) {
+      query = query.eq('level', filters.level);
+    }
+    if (filters?.source) {
+      query = query.eq('source', filters.source);
+    }
+    if (filters?.limit) {
+      query = query.limit(filters.limit);
+    }
+    if (filters?.offset) {
+      query = query.range(filters.offset, filters.offset + (filters.limit || 50) - 1);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data;
+  }
+
   static async ingestLog(log: LogEntry) {
     console.log('Ingesting log:', log);
     
@@ -64,119 +109,148 @@ export class ResolvixService {
     return data;
   }
 
-  // Ticket operations
+  // Ticket operations using Edge Functions for complex logic
   static async getTickets(filters?: {
     status?: TicketStatus;
     priority?: TicketPriority;
     assignee?: string;
   }) {
-    const params = new URLSearchParams();
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.priority) params.append('priority', filters.priority);
-    if (filters?.assignee) params.append('assignee', filters.assignee);
+    let query = supabase
+      .from('tickets')
+      .select(`
+        *,
+        log:logs(*),
+        created_by_profile:profiles!tickets_created_by_fkey(*),
+        assignee_profile:profiles!tickets_assignee_fkey(*)
+      `)
+      .order('created_at', { ascending: false });
 
-    const { data, error } = await supabase.functions.invoke('tickets-api', {
-      body: { method: 'GET', params: params.toString() }
-    });
-
-    if (error) {
-      console.error('Error fetching tickets:', error);
-      throw error;
+    if (filters?.status) {
+      query = query.eq('status', filters.status);
+    }
+    if (filters?.priority) {
+      query = query.eq('priority', filters.priority);
+    }
+    if (filters?.assignee) {
+      query = query.eq('assignee', filters.assignee);
     }
 
+    const { data, error } = await query;
+    if (error) throw error;
     return data;
   }
 
   static async getTicket(id: string) {
-    const { data, error } = await supabase.functions.invoke('tickets-api', {
-      body: { method: 'GET', ticketId: id }
-    });
+    const { data, error } = await supabase
+      .from('tickets')
+      .select(`
+        *,
+        log:logs(*),
+        created_by_profile:profiles!tickets_created_by_fkey(*),
+        assignee_profile:profiles!tickets_assignee_fkey(*)
+      `)
+      .eq('id', id)
+      .single();
 
-    if (error) {
-      console.error('Error fetching ticket:', error);
-      throw error;
-    }
-
+    if (error) throw error;
     return data;
   }
 
   static async createTicket(ticket: Omit<Ticket, 'id' | 'created_at' | 'updated_at'>) {
-    const { data, error } = await supabase.functions.invoke('tickets-api', {
-      body: { method: 'POST', ...ticket }
-    });
+    const { data, error } = await supabase
+      .from('tickets')
+      .insert({
+        ...ticket,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
 
-    if (error) {
-      console.error('Error creating ticket:', error);
-      throw error;
-    }
-
+    if (error) throw error;
     return data;
   }
 
   static async updateTicket(id: string, updates: Partial<Ticket>) {
-    const { data, error } = await supabase.functions.invoke('tickets-api', {
-      body: { method: 'PATCH', ticketId: id, ...updates }
-    });
+    const { data, error } = await supabase
+      .from('tickets')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
 
-    if (error) {
-      console.error('Error updating ticket:', error);
-      throw error;
-    }
-
+    if (error) throw error;
     return data;
   }
 
-  // Chat operations
+  // Chat operations using direct Supabase for simplicity
   static async getChatMessages(ticketId: string) {
-    const { data, error } = await supabase.functions.invoke('chat-api', {
-      body: { method: 'GET', ticketId }
-    });
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select(`
+        *,
+        user:profiles(*)
+      `)
+      .eq('ticket_id', ticketId)
+      .order('created_at', { ascending: true });
 
-    if (error) {
-      console.error('Error fetching chat messages:', error);
-      throw error;
-    }
-
+    if (error) throw error;
     return data;
   }
 
   static async postChatMessage(message: Omit<ChatMessage, 'id' | 'created_at'>) {
-    const { data, error } = await supabase.functions.invoke('chat-api', {
-      body: { method: 'POST', ...message }
-    });
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .insert({
+        ...message,
+        created_at: new Date().toISOString()
+      })
+      .select(`
+        *,
+        user:profiles(*)
+      `)
+      .single();
 
-    if (error) {
-      console.error('Error posting chat message:', error);
-      throw error;
-    }
-
+    if (error) throw error;
     return data;
   }
 
   // AI Recommendations
   static async getRecommendations(ticketId: string) {
-    const { data, error } = await supabase.functions.invoke('ai-recommendations', {
-      body: { method: 'GET', ticketId }
-    });
+    const { data, error } = await supabase
+      .from('recommendations')
+      .select('*')
+      .eq('ticket_id', ticketId)
+      .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching recommendations:', error);
-      throw error;
-    }
-
+    if (error) throw error;
     return data;
   }
 
   static async generateRecommendations(ticketId: string) {
     const { data, error } = await supabase.functions.invoke('ai-recommendations', {
-      body: { method: 'POST', ticketId }
+      body: { ticketId }
     });
 
-    if (error) {
-      console.error('Error generating recommendations:', error);
-      throw error;
+    if (error) throw error;
+    return data;
+  }
+
+  // Users for assignee dropdowns
+  static async getUsers(role?: string) {
+    let query = supabase
+      .from('profiles')
+      .select('id, full_name, email, role');
+
+    if (role) {
+      query = query.eq('role', role);
     }
 
+    const { data, error } = await query;
+    if (error) throw error;
     return data;
   }
 
@@ -197,6 +271,18 @@ export class ResolvixService {
       .channel(`chat-${ticketId}`)
       .on('postgres_changes', {
         event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: `ticket_id=eq.${ticketId}`
+      }, callback)
+      .subscribe();
+  }
+
+  static subscribeToChatUpdates(ticketId: string, callback: (payload: any) => void) {
+    return supabase
+      .channel(`chat-updates-${ticketId}`)
+      .on('postgres_changes', {
+        event: '*',
         schema: 'public',
         table: 'chat_messages',
         filter: `ticket_id=eq.${ticketId}`
