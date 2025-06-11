@@ -1,10 +1,10 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
 type LogLevel = Database['public']['Enums']['log_level'];
 type TicketStatus = Database['public']['Enums']['ticket_status'];
 type TicketPriority = Database['public']['Enums']['ticket_priority'];
+type UserRole = Database['public']['Enums']['user_role'];
 
 export interface LogEntry {
   id?: string;
@@ -240,7 +240,7 @@ export class ResolvixService {
   }
 
   // Users for assignee dropdowns
-  static async getUsers(role?: string) {
+  static async getUsers(role?: UserRole) {
     let query = supabase
       .from('profiles')
       .select('id, full_name, email, role');
