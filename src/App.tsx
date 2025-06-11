@@ -11,6 +11,7 @@ import Login from "./pages/Login";
 import Unauthorized from "./pages/Unauthorized";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import DevSetup from "./pages/DevSetup";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => (
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
+            <Route path="/dev-setup" element={<DevSetup />} />
             
             {/* Protected main application */}
             <Route 
