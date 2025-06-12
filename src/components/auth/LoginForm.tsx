@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { CheckCircle, Mail } from 'lucide-react';
 
 type UserRole = Database['public']['Enums']['user_role'];
 
@@ -19,6 +21,7 @@ export function LoginForm() {
   const [role, setRole] = useState<UserRole>('viewer');
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const { signIn } = useAuth();
   const { toast } = useToast();
 
@@ -32,10 +35,20 @@ export function LoginForm() {
         title: "Welcome back!",
         description: "You have successfully signed in.",
       });
-    } catch (error) {
+      // Redirect will happen automatically via auth state change
+    } catch (error: any) {
+      console.error('Sign in error:', error);
+      
+      let errorMessage = "Failed to sign in";
+      if (error.message?.includes('Invalid login credentials')) {
+        errorMessage = "Invalid email or password. Please check your credentials.";
+      } else if (error.message?.includes('Email not confirmed')) {
+        errorMessage = "Please check your email and click the confirmation link before signing in.";
+      }
+      
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to sign in",
+        title: "Sign In Error",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -48,20 +61,28 @@ export function LoginForm() {
     setIsLoading(true);
 
     try {
-      // Sign up the user
+      console.log('Starting signup process for:', email);
+      
+      // Sign up the user with proper redirect URL
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/`,
           data: {
             full_name: fullName,
           },
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Signup error:', error);
+        throw error;
+      }
 
       if (data.user) {
+        console.log('User created:', data.user.id);
+        
         // Update the user's role in the profiles table
         const { error: profileError } = await supabase
           .from('profiles')
@@ -70,30 +91,91 @@ export function LoginForm() {
 
         if (profileError) {
           console.error('Profile update error:', profileError);
+          // Don't throw here, the user was created successfully
+        } else {
+          console.log('Profile role updated to:', role);
         }
 
+        setEmailSent(true);
         toast({
           title: "Account created successfully!",
-          description: "You can now sign in with your credentials.",
+          description: "Please check your email and click the confirmation link to complete your registration.",
         });
 
-        // Reset form and switch to sign in mode
-        setIsSignUp(false);
+        // Reset form
         setEmail('');
         setPassword('');
         setFullName('');
         setRole('viewer');
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      
+      let errorMessage = "Failed to create account";
+      if (error.message?.includes('already been registered')) {
+        errorMessage = "An account with this email already exists. Try signing in instead.";
+      }
+      
       toast({
         title: "Error creating account",
-        description: error instanceof Error ? error.message : "Failed to create account",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   };
+
+  const resetForm = () => {
+    setIsSignUp(!isSignUp);
+    setEmail('');
+    setPassword('');
+    setFullName('');
+    setRole('viewer');
+    setEmailSent(false);
+  };
+
+  if (emailSent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
+        <div className="w-full max-w-md">
+          <Card>
+            <CardHeader className="text-center">
+              <CheckCircle className="w-16 h-16 mx-auto mb-4 text-green-500" />
+              <CardTitle>Check Your Email</CardTitle>
+              <CardDescription>
+                We've sent a confirmation link to <strong>{email}</strong>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert>
+                <Mail className="w-4 h-4" />
+                <AlertDescription>
+                  Click the link in your email to activate your account, then return here to sign in.
+                </AlertDescription>
+              </Alert>
+              
+              <div className="space-y-2">
+                <Button 
+                  onClick={() => setEmailSent(false)} 
+                  className="w-full"
+                >
+                  Back to Sign In
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => window.location.href = '/dev-setup'} 
+                  className="w-full"
+                >
+                  Go to Dev Setup
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
@@ -185,13 +267,7 @@ export function LoginForm() {
             <div className="mt-6 text-center">
               <Button
                 variant="link"
-                onClick={() => {
-                  setIsSignUp(!isSignUp);
-                  setEmail('');
-                  setPassword('');
-                  setFullName('');
-                  setRole('viewer');
-                }}
+                onClick={resetForm}
                 className="text-sm"
               >
                 {isSignUp 
