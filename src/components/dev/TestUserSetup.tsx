@@ -58,6 +58,15 @@ export function TestUserSetup() {
   };
 
   const createSampleData = async () => {
+    if (!testUser) {
+      toast({
+        title: "No test user found",
+        description: "Please create a test user first",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       // Insert sample logs
       const { error: logsError } = await supabase
@@ -95,24 +104,24 @@ export function TestUserSetup() {
 
       if (logsError) throw logsError;
 
-      // Insert sample tickets
+      // Insert sample tickets with correct type casting
       const { data: ticketData, error: ticketsError } = await supabase
         .from('tickets')
         .insert([
           {
             title: 'API Performance Issue',
             description: 'Users reporting slow response times on the search API endpoint',
-            status: 'open',
-            priority: 'high',
-            created_by: testUser?.id,
+            status: 'open' as const,
+            priority: 'high' as const,
+            created_by: testUser.id as string,
             tags: ['performance', 'api', 'manual']
           },
           {
             title: 'Security Review Required',
             description: 'Quarterly security audit for user authentication system',
-            status: 'in_progress',
-            priority: 'medium',
-            created_by: testUser?.id,
+            status: 'in-progress' as const,
+            priority: 'medium' as const,
+            created_by: testUser.id as string,
             tags: ['security', 'audit']
           }
         ])
@@ -127,12 +136,12 @@ export function TestUserSetup() {
           .insert([
             {
               ticket_id: ticketData[0].id,
-              user_id: testUser?.id,
+              user_id: testUser.id,
               message: "I've started investigating this issue. Initial findings suggest it might be related to database connection pooling."
             },
             {
               ticket_id: ticketData[0].id,
-              user_id: testUser?.id,
+              user_id: testUser.id,
               message: "Update: Found the root cause. The connection pool was exhausted due to long-running queries. Implementing query optimization."
             }
           ]);
