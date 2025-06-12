@@ -35,42 +35,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    console.log('Setting up auth state listener...');
+    let mounted = true;
 
-    // Listen for auth changes first
+    const initializeAuth = async () => {
+      try {
+        console.log('Initializing auth...');
+        
+        // Get initial session
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+        }
+
+        if (mounted) {
+          setSession(initialSession);
+          setUser(initialSession?.user ?? null);
+          
+          if (initialSession?.user) {
+            // Fetch profile after setting user
+            setTimeout(() => {
+              if (mounted) {
+                fetchProfile(initialSession.user.id);
+              }
+            }, 100);
+          } else {
+            setLoading(false);
+          }
+          
+          setInitialized(true);
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        if (mounted) {
+          setLoading(false);
+          setInitialized(true);
+        }
+      }
+    };
+
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
+        
+        if (!mounted) return;
+
         setSession(session);
         setUser(session?.user ?? null);
         
-        if (session?.user) {
+        if (event === 'SIGNED_IN' && session?.user) {
           // Defer profile fetching to avoid deadlocks
           setTimeout(() => {
-            fetchProfile(session.user.id);
-          }, 0);
-        } else {
+            if (mounted) {
+              fetchProfile(session.user.id);
+            }
+          }, 100);
+        } else if (event === 'SIGNED_OUT') {
+          setProfile(null);
+          setLoading(false);
+        } else if (!session) {
           setProfile(null);
           setLoading(false);
         }
       }
     );
 
-    // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session check:', session?.user?.email);
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
+    // Initialize auth
+    initializeAuth();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchProfile = async (userId: string) => {
@@ -80,15 +120,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error fetching profile:', error);
+        setLoading(false);
         return;
       }
 
-      console.log('Profile fetched:', data);
-      setProfile(data);
+      if (data) {
+        console.log('Profile fetched:', data);
+        setProfile(data);
+      } else {
+        console.log('No profile found for user:', userId);
+        setProfile(null);
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
@@ -97,47 +143,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    console.log('Attempting sign in for:', email);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      setLoading(true);
+      console.log('Attempting sign in for:', email);
+      
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      console.error('Sign in error:', error);
+      if (error) {
+        console.error('Sign in error:', error);
+        setLoading(false);
+        throw error;
+      }
+      
+      console.log('Sign in successful');
+    } catch (error) {
+      setLoading(false);
       throw error;
     }
-    console.log('Sign in successful');
   };
 
   const signUp = async (email: string, password: string, fullName?: string) => {
-    console.log('Attempting sign up for:', email);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: {
-          full_name: fullName,
+    try {
+      setLoading(true);
+      console.log('Attempting sign up for:', email);
+      
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: fullName,
+          },
         },
-      },
-    });
+      });
 
-    if (error) {
-      console.error('Sign up error:', error);
+      if (error) {
+        console.error('Sign up error:', error);
+        setLoading(false);
+        throw error;
+      }
+      
+      console.log('Sign up successful');
+    } catch (error) {
+      setLoading(false);
       throw error;
     }
-    console.log('Sign up successful');
   };
 
   const signOut = async () => {
-    console.log('Signing out...');
-    const { error } = await supabase.auth.signOut();
-    if (error) {
+    try {
+      setLoading(true);
+      console.log('Signing out...');
+      
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Sign out error:', error);
+        throw error;
+      }
+      
+      // Clear state
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      
+      console.log('Sign out successful');
+      
+      // Force redirect to home
+      window.location.href = '/';
+    } catch (error) {
+      setLoading(false);
       console.error('Sign out error:', error);
       throw error;
     }
-    console.log('Sign out successful');
   };
 
   const hasRole = (role: UserRole): boolean => {
@@ -147,6 +228,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAdmin = profile?.role === 'admin';
   const isEngineer = profile?.role === 'engineer';
   const isViewer = profile?.role === 'viewer';
+
+  // Don't render until initialized
+  if (!initialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   const value = {
     user,
