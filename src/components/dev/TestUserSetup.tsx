@@ -14,13 +14,17 @@ export function TestUserSetup() {
   const createTestUser = async () => {
     setIsCreating(true);
     try {
-      // Create the test user through Supabase Auth
-      const { data, error } = await supabase.auth.admin.createUser({
+      // First, try to sign out any existing user
+      await supabase.auth.signOut();
+
+      // Create the test user through standard signup
+      const { data, error } = await supabase.auth.signUp({
         email: 'admin@resolvix.com',
         password: 'ResolvixAdmin2024!',
-        email_confirm: true,
-        user_metadata: {
-          full_name: 'Test Admin User'
+        options: {
+          data: {
+            full_name: 'Test Admin User'
+          }
         }
       });
 
@@ -28,8 +32,8 @@ export function TestUserSetup() {
         throw error;
       }
 
-      // Update the profile to admin role
       if (data.user) {
+        // Update the profile to admin role after user creation
         const { error: profileError } = await supabase
           .from('profiles')
           .update({ role: 'admin' })
@@ -47,11 +51,22 @@ export function TestUserSetup() {
       }
     } catch (error: any) {
       console.error('Error creating test user:', error);
-      toast({
-        title: "Error creating test user",
-        description: error.message,
-        variant: "destructive"
-      });
+      
+      // If user already exists, that's okay
+      if (error.message?.includes('already registered')) {
+        toast({
+          title: "Test user already exists",
+          description: "You can use the existing credentials to log in.",
+        });
+        // Set a dummy user object to enable sample data creation
+        setTestUser({ id: 'existing-user' });
+      } else {
+        toast({
+          title: "Error creating test user",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsCreating(false);
     }
@@ -68,6 +83,19 @@ export function TestUserSetup() {
     }
 
     try {
+      // Get the current user to use their ID for data creation
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+
+      if (!userId) {
+        toast({
+          title: "Please log in first",
+          description: "Log in with the test user credentials before creating sample data",
+          variant: "destructive"
+        });
+        return;
+      }
+
       // Insert sample logs
       const { error: logsError } = await supabase
         .from('logs')
@@ -113,7 +141,7 @@ export function TestUserSetup() {
             description: 'Users reporting slow response times on the search API endpoint',
             status: 'open' as const,
             priority: 'high' as const,
-            created_by: testUser.id as string,
+            created_by: userId,
             tags: ['performance', 'api', 'manual']
           },
           {
@@ -121,7 +149,7 @@ export function TestUserSetup() {
             description: 'Quarterly security audit for user authentication system',
             status: 'in-progress' as const,
             priority: 'medium' as const,
-            created_by: testUser.id as string,
+            created_by: userId,
             tags: ['security', 'audit']
           }
         ])
@@ -136,12 +164,12 @@ export function TestUserSetup() {
           .insert([
             {
               ticket_id: ticketData[0].id,
-              user_id: testUser.id,
+              user_id: userId,
               message: "I've started investigating this issue. Initial findings suggest it might be related to database connection pooling."
             },
             {
               ticket_id: ticketData[0].id,
-              user_id: testUser.id,
+              user_id: userId,
               message: "Update: Found the root cause. The connection pool was exhausted due to long-running queries. Implementing query optimization."
             }
           ]);
@@ -185,12 +213,15 @@ export function TestUserSetup() {
         ) : (
           <div className="space-y-4">
             <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-              <h3 className="font-medium text-green-800 mb-2">Test User Created!</h3>
+              <h3 className="font-medium text-green-800 mb-2">Test User Ready!</h3>
               <div className="space-y-1 text-sm">
                 <p><strong>Email:</strong> admin@resolvix.com</p>
                 <p><strong>Password:</strong> ResolvixAdmin2024!</p>
                 <Badge variant="default">Admin Role</Badge>
               </div>
+              <p className="text-xs text-green-600 mt-2">
+                Please log in with these credentials first, then return here to add sample data.
+              </p>
             </div>
             <Button 
               onClick={createSampleData}
@@ -199,8 +230,14 @@ export function TestUserSetup() {
             >
               Add Sample Data
             </Button>
+            <Button 
+              onClick={() => window.location.href = '/login'}
+              className="w-full"
+            >
+              Go to Login
+            </Button>
             <p className="text-xs text-muted-foreground">
-              Click "Add Sample Data" to populate the system with example logs, tickets, and chat messages.
+              After logging in with the test user, come back to add sample data (logs, tickets, and chat messages).
             </p>
           </div>
         )}
