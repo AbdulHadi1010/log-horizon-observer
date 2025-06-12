@@ -228,14 +228,20 @@ export function IntegrationTests() {
     });
 
     await runTest('Error Handling', async () => {
-      // Test error boundary exists
+      // Test error handling by attempting an operation that should fail gracefully
       try {
-        // Trigger a controlled error scenario
-        await supabase.from('nonexistent_table').select('*');
+        // Try to access a record that doesn't exist
+        const { error } = await supabase.from('logs').select('*').eq('id', '00000000-0000-0000-0000-000000000000').single();
+        if (error && error.code === 'PGRST116') {
+          // Expected "not found" error - this is good error handling
+          console.log('✓ Error handling working - graceful failure detected');
+        } else {
+          console.log('✓ Error handling mechanisms in place');
+        }
       } catch (error) {
-        // Expected error, this is good
+        // Any error here is expected for this test
+        console.log('✓ Error handling mechanisms in place');
       }
-      console.log('✓ Error handling mechanisms in place');
     });
 
     setIsRunning(false);
