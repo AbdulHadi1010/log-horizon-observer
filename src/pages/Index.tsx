@@ -44,12 +44,15 @@ export default function Index() {
           </p>
           <div className="space-x-4">
             <Button onClick={() => navigate('/login')} size="lg">
-              Get Started
+              Sign Up Free
             </Button>
-            <Button variant="outline" size="lg">
-              Learn More
+            <Button variant="outline" onClick={() => navigate('/login')} size="lg">
+              Sign In
             </Button>
           </div>
+          <p className="text-sm text-muted-foreground mt-4">
+            Choose your role: Admin, Engineer, or Viewer during signup
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
@@ -102,13 +105,19 @@ export default function Index() {
           </Card>
         </div>
 
-        <div className="text-center">
-          <p className="text-muted-foreground mb-4">
-            Ready to streamline your incident management?
+        <div className="text-center bg-card rounded-lg p-8 shadow-lg">
+          <h2 className="text-2xl font-bold mb-4">Ready to streamline your incident management?</h2>
+          <p className="text-muted-foreground mb-6">
+            Join teams using Resolvix to resolve issues faster and more efficiently.
           </p>
-          <Button onClick={() => navigate('/login')} size="lg" className="px-8">
-            Sign In to Continue
-          </Button>
+          <div className="space-x-4">
+            <Button onClick={() => navigate('/login')} size="lg" className="px-8">
+              Get Started Now
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/dev-setup')} size="lg">
+              Try Demo Setup
+            </Button>
+          </div>
         </div>
       </div>
     </div>
