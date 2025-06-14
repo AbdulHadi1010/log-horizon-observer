@@ -75,13 +75,11 @@ const menuItems = [
 interface ResolvixSidebarProps {
   activeSection?: string;
   onSectionChange?: (section: string) => void;
-  expanded?: boolean;
 }
 
 export function ResolvixSidebar({ 
   activeSection = "dashboard", 
-  onSectionChange,
-  expanded = false 
+  onSectionChange
 }: ResolvixSidebarProps) {
   const { signOut } = useAuth();
   const { profile } = useProfile();
@@ -112,36 +110,26 @@ export function ResolvixSidebar({
           <div className="w-8 h-8 bg-primary rounded flex items-center justify-center flex-shrink-0">
             <span className="text-primary-foreground font-bold text-sm">R</span>
           </div>
-          {expanded && (
-            <div className="min-w-0 flex-1">
-              <h2 className="font-semibold text-sm truncate">Resolvix</h2>
-              <p className="text-xs text-muted-foreground truncate">Incident Management</p>
-            </div>
-          )}
+          <div className="min-w-0 flex-1">
+            <h2 className="font-semibold text-sm truncate">Resolvix</h2>
+            <p className="text-xs text-muted-foreground truncate">Incident Management</p>
+          </div>
         </div>
       </SidebarHeader>
 
       <SidebarContent className="flex-1">
         <SidebarGroup>
-          <SidebarGroupLabel className={expanded ? "" : "sr-only"}>
-            Navigation
-          </SidebarGroupLabel>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
-                    asChild
-                    className={activeSection === item.id ? "bg-accent" : ""}
-                    title={!expanded ? item.title : undefined}
+                    isActive={activeSection === item.id}
+                    onClick={() => onSectionChange?.(item.id)}
                   >
-                    <button
-                      onClick={() => onSectionChange?.(item.id)}
-                      className="w-full flex items-center gap-2"
-                    >
-                      <item.icon className="w-4 h-4 flex-shrink-0" />
-                      {expanded && <span className="truncate">{item.title}</span>}
-                    </button>
+                    <item.icon className="w-4 h-4 flex-shrink-0" />
+                    <span className="truncate">{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -160,30 +148,26 @@ export function ResolvixSidebar({
                   {getInitials(profile.full_name, profile.email)}
                 </AvatarFallback>
               </Avatar>
-              {expanded && (
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">
-                    {profile.full_name || profile.email}
-                  </p>
-                  <div className="flex items-center gap-1">
-                    <Badge variant={getRoleColor(profile.role)} className="text-xs">
-                      {profile.role}
-                    </Badge>
-                  </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium truncate">
+                  {profile.full_name || profile.email}
+                </p>
+                <div className="flex items-center gap-1">
+                  <Badge variant={getRoleColor(profile.role)} className="text-xs">
+                    {profile.role}
+                  </Badge>
                 </div>
-              )}
+              </div>
             </div>
-            {expanded && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={signOut}
-                className="w-full justify-start"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </Button>
-            )}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={signOut}
+              className="w-full justify-start"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
           </div>
         )}
       </SidebarFooter>
