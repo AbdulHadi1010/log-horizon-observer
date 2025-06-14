@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { CheckCircle, Mail } from 'lucide-react';
@@ -24,6 +24,7 @@ export function LoginForm() {
   const [emailSent, setEmailSent] = useState(false);
   const { signIn } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +36,8 @@ export function LoginForm() {
         title: "Welcome back!",
         description: "You have successfully signed in.",
       });
-      // Redirect will happen automatically via auth state change
+      // Redirect to dashboard after successful sign in
+      navigate('/dashboard', { replace: true });
     } catch (error: any) {
       console.error('Sign in error:', error);
       
@@ -63,12 +65,12 @@ export function LoginForm() {
     try {
       console.log('Starting signup process for:', email);
       
-      // Sign up the user with proper redirect URL
+      // Sign up the user with proper redirect URL that goes to dashboard
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             full_name: fullName,
           },
@@ -99,7 +101,7 @@ export function LoginForm() {
         setEmailSent(true);
         toast({
           title: "Account created successfully!",
-          description: "Please check your email and click the confirmation link to complete your registration.",
+          description: "Please check your email and click the confirmation link to complete your registration. You'll be automatically redirected to the dashboard.",
         });
 
         // Reset form
@@ -151,7 +153,7 @@ export function LoginForm() {
               <Alert>
                 <Mail className="w-4 h-4" />
                 <AlertDescription>
-                  Click the link in your email to activate your account, then return here to sign in.
+                  Click the link in your email to activate your account. You'll be automatically redirected to the dashboard after confirmation.
                 </AlertDescription>
               </Alert>
               
