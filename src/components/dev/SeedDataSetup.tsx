@@ -1,10 +1,10 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, Users, Database, CheckCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TestUser {
   name: string;
@@ -26,23 +26,30 @@ export function SeedDataSetup() {
     setSeedResult(null);
     
     try {
-      const response = await fetch('/functions/v1/seed-demo-data', {
+      console.log('Calling seed-demo-data function...');
+      
+      const { data, error } = await supabase.functions.invoke('seed-demo-data', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        },
+        }
       });
 
-      const result = await response.json();
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Failed to call seed function');
+      }
       
-      if (result.success) {
-        setSeedResult(result);
+      console.log('Function response:', data);
+      
+      if (data?.success) {
+        setSeedResult(data);
         toast({
           title: "Demo data seeded successfully!",
           description: "Test users and sample data have been created.",
         });
       } else {
-        throw new Error(result.error || 'Failed to seed demo data');
+        throw new Error(data?.error || 'Failed to seed demo data');
       }
     } catch (error: any) {
       console.error('Error seeding demo data:', error);
