@@ -1,6 +1,7 @@
 
 import { useState } from 'react';
 import { TestUserSetup } from '@/components/dev/TestUserSetup';
+import { SeedDataSetup } from '@/components/dev/SeedDataSetup';
 import { IntegrationTests } from '@/components/dev/IntegrationTests';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export default function DevSetup() {
   const { user, signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState('setup');
+  const [activeTab, setActiveTab] = useState('seed');
 
   return (
     <div className="min-h-screen bg-background p-4">
@@ -17,7 +18,7 @@ export default function DevSetup() {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold">Resolvix Development Center</h1>
           <p className="text-muted-foreground mt-2">
-            Set up test data and run comprehensive tests
+            Set up demo data, run tests, and manage development environment
           </p>
           {user && (
             <div className="mt-4 flex items-center justify-center gap-4">
@@ -32,18 +33,33 @@ export default function DevSetup() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="setup">Test Data Setup</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="seed">Demo Data</TabsTrigger>
+            <TabsTrigger value="setup">Legacy Setup</TabsTrigger>
             <TabsTrigger value="tests">Integration Tests</TabsTrigger>
-            <TabsTrigger value="dashboard">Go to Dashboard</TabsTrigger>
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="seed">
+            <Card>
+              <CardHeader>
+                <CardTitle>Demo Data Seeding</CardTitle>
+                <CardDescription>
+                  Create comprehensive test users and sample data for demos and presentations
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SeedDataSetup />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="setup">
             <Card>
               <CardHeader>
-                <CardTitle>Test User & Data Setup</CardTitle>
+                <CardTitle>Legacy Test User Setup</CardTitle>
                 <CardDescription>
-                  Create test users and populate the system with sample data for development and testing
+                  Create a single test user and populate with basic sample data
                 </CardDescription>
               </CardHeader>
               <CardContent>
