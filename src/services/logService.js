@@ -1,16 +1,7 @@
 
-export interface LogEntry {
-  id: string;
-  timestamp: string;
-  level: "info" | "warning" | "error" | "debug";
-  source: string;
-  message: string;
-  metadata?: Record<string, any>;
-}
-
-export const generateMockLog = (): LogEntry => {
+export const generateMockLog = () => {
   const sources = ["auth-service", "payment-service", "user-service", "notification-service", "database"];
-  const levels: LogEntry["level"][] = ["info", "warning", "error", "debug"];
+  const levels = ["info", "warning", "error", "debug"];
   
   const messages = {
     info: [
@@ -73,6 +64,6 @@ export const generateMockLog = (): LogEntry => {
   };
 };
 
-export const generateMockLogs = (count: number): LogEntry[] => {
+export const generateMockLogs = (count) => {
   return Array.from({ length: count }, generateMockLog);
 };
