@@ -6,6 +6,10 @@ import { LogsExplorer } from "./LogsExplorer";
 import { TicketSystem } from "./TicketSystem";
 import { TicketDetails } from "./TicketDetails";
 import { Dashboard } from "./Dashboard";
+import { MonitoringView } from "./MonitoringView";
+import { NotificationsView } from "./NotificationsView";
+import { TeamView } from "./TeamView";
+import { SettingsView } from "./SettingsView";
 
 export function ResolvixDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
@@ -28,6 +32,14 @@ export function ResolvixDashboard() {
         return <LogsExplorer />;
       case "tickets":
         return <TicketSystem onTicketSelect={setSelectedTicketId} />;
+      case "monitoring":
+        return <MonitoringView />;
+      case "notifications":
+        return <NotificationsView />;
+      case "team":
+        return <TeamView />;
+      case "settings":
+        return <SettingsView />;
       default:
         return <Dashboard />;
     }
