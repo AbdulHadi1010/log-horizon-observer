@@ -10,13 +10,13 @@ import { Search, Play, Pause, Download, Filter, AlertTriangle } from "lucide-rea
 import { LogEntry, generateMockLog } from "../../services/logService";
 
 export function LogsExplorer() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, setLogs] = useState([]);
   const [isStreaming, setIsStreaming] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSeverity, setSelectedSeverity] = useState("all");
   const [selectedSource, setSelectedSource] = useState("all");
-  const [expandedLog, setExpandedLog] = useState<string | null>(null);
-  const logsEndRef = useRef<HTMLDivElement>(null);
+  const [expandedLog, setExpandedLog] = useState(null);
+  const logsEndRef = useRef(null);
 
   const sources = ["all", "auth-service", "payment-service", "user-service", "notification-service", "database"];
   const severities = ["all", "info", "warning", "error", "debug"];
@@ -50,7 +50,7 @@ export function LogsExplorer() {
     return matchesSearch && matchesSource && matchesSeverity;
   });
 
-  const getLevelColor = (level: string) => {
+  const getLevelColor = (level) => {
     switch (level) {
       case "error":
         return "destructive";
@@ -65,17 +65,17 @@ export function LogsExplorer() {
     }
   };
 
-  const formatTimestamp = (timestamp: string) => {
+  const formatTimestamp = (timestamp) => {
     return new Date(timestamp).toLocaleString();
   };
 
-  const truncateMessage = (message: string, maxLength: number = 100) => {
+  const truncateMessage = (message, maxLength = 100) => {
     return message.length > maxLength ? message.substring(0, maxLength) + "..." : message;
   };
 
   return (
-    <div className="p-6 space-y-6 h-full flex flex-col">
-      <div className="flex items-center justify-between">
+    <div className="p-6 space-y-6 max-h-screen flex flex-col">
+      <div className="flex items-center justify-between flex-shrink-0">
         <div>
           <h2 className="text-2xl font-bold">Logs Explorer</h2>
           <p className="text-muted-foreground">Search and filter system logs in real-time</p>
@@ -150,7 +150,7 @@ export function LogsExplorer() {
         </CardContent>
       </Card>
 
-      <Card className="flex-1 flex flex-col min-h-0">
+      <Card className="flex-1 flex flex-col min-h-0 max-h-[600px]">
         <CardHeader className="pb-3 flex-shrink-0">
           <CardTitle>Log Stream</CardTitle>
         </CardHeader>

@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -96,7 +95,7 @@ export function Dashboard() {
     }
   ];
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status) => {
     switch (status) {
       case 'critical':
         return 'bg-red-100 text-red-800';
@@ -109,7 +108,7 @@ export function Dashboard() {
     }
   };
 
-  const getLogLevelColor = (level: string) => {
+  const getLogLevelColor = (level) => {
     switch (level) {
       case 'error':
         return 'bg-red-100 text-red-800';

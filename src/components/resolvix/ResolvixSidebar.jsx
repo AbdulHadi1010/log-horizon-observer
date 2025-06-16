@@ -72,19 +72,14 @@ const menuItems = [
   }
 ];
 
-interface ResolvixSidebarProps {
-  activeSection?: string;
-  onSectionChange?: (section: string) => void;
-}
-
 export function ResolvixSidebar({ 
   activeSection = "dashboard", 
   onSectionChange
-}: ResolvixSidebarProps) {
+}) {
   const { signOut } = useAuth();
   const { profile } = useProfile();
 
-  const getRoleColor = (role: string) => {
+  const getRoleColor = (role) => {
     switch (role) {
       case 'admin': return 'destructive';
       case 'engineer': return 'default';
@@ -93,7 +88,7 @@ export function ResolvixSidebar({
     }
   };
 
-  const getInitials = (name?: string, email?: string) => {
+  const getInitials = (name, email) => {
     if (name) {
       return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     }

@@ -10,10 +10,11 @@ import { MonitoringView } from "./MonitoringView";
 import { NotificationsView } from "./NotificationsView";
 import { TeamView } from "./TeamView";
 import { SettingsView } from "./SettingsView";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function ResolvixDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
-  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [selectedTicketId, setSelectedTicketId] = useState(null);
 
   const renderContent = () => {
     if (selectedTicketId) {
@@ -53,7 +54,7 @@ export function ResolvixDashboard() {
           onSectionChange={setActiveSection}
         />
         <SidebarInset className="flex-1 flex flex-col">
-          <header className="h-14 border-b flex items-center px-4 bg-card">
+          <header className="h-14 border-b flex items-center justify-between px-4 bg-card">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-sm">R</span>
@@ -63,6 +64,7 @@ export function ResolvixDashboard() {
                 <p className="text-xs text-muted-foreground">Logs & Incident Management</p>
               </div>
             </div>
+            <ThemeToggle />
           </header>
           <main className="flex-1 overflow-auto">
             {renderContent()}
