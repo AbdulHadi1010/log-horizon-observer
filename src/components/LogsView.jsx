@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,22 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Play, Pause, Download, Filter } from "lucide-react";
 
-interface LogEntry {
-  id: string;
-  timestamp: string;
-  node: string;
-  level: "info" | "warning" | "error" | "debug";
-  service: string;
-  message: string;
-}
-
 export function LogsView() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, setLogs] = useState([]);
   const [isStreaming, setIsStreaming] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedNode, setSelectedNode] = useState("all");
   const [selectedLevel, setSelectedLevel] = useState("all");
-  const logsEndRef = useRef<HTMLDivElement>(null);
+  const logsEndRef = useRef(null);
 
   const nodes = ["all", "master-node-01", "master-node-02", "worker-node-01", "worker-node-02", "worker-node-03"];
   const levels = ["all", "info", "warning", "error", "debug"];
@@ -31,10 +21,10 @@ export function LogsView() {
   useEffect(() => {
     if (!isStreaming) return;
 
-    const generateLog = (): LogEntry => {
+    const generateLog = () => {
       const nodeNames = ["master-node-01", "master-node-02", "worker-node-01", "worker-node-02", "worker-node-03"];
       const services = ["kubelet", "kube-proxy", "containerd", "etcd", "kube-apiserver", "nginx"];
-      const logLevels: LogEntry["level"][] = ["info", "warning", "error", "debug"];
+      const logLevels = ["info", "warning", "error", "debug"];
       const messages = [
         "Successfully processed request",
         "Container started successfully",
@@ -85,7 +75,7 @@ export function LogsView() {
     return matchesSearch && matchesNode && matchesLevel;
   });
 
-  const getLevelColor = (level: string) => {
+  const getLevelColor = (level) => {
     switch (level) {
       case "error":
         return "destructive";
@@ -100,7 +90,7 @@ export function LogsView() {
     }
   };
 
-  const formatTimestamp = (timestamp: string) => {
+  const formatTimestamp = (timestamp) => {
     return new Date(timestamp).toLocaleTimeString();
   };
 
@@ -183,13 +173,13 @@ export function LogsView() {
           <CardTitle>Log Stream</CardTitle>
         </CardHeader>
         <CardContent className="flex-1 overflow-hidden">
-          <div className="h-full overflow-auto bg-black rounded-lg p-4 font-mono text-sm">
+          <div className="h-full overflow-auto bg-slate-900 dark:bg-slate-950 rounded-lg p-4 font-mono text-sm">
             {filteredLogs.map((log) => (
               <div
                 key={log.id}
-                className="flex gap-3 text-green-400 mb-1 hover:bg-gray-900 px-2 py-1 rounded"
+                className="flex gap-3 text-green-400 mb-1 hover:bg-slate-800 dark:hover:bg-slate-900 px-2 py-1 rounded"
               >
-                <span className="text-gray-500 min-w-[80px]">
+                <span className="text-slate-500 min-w-[80px]">
                   {formatTimestamp(log.timestamp)}
                 </span>
                 <span className="text-blue-400 min-w-[120px] truncate">
