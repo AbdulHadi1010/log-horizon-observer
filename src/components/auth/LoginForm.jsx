@@ -6,11 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { CheckCircle, Mail } from 'lucide-react';
 
 export function LoginForm() {
   const [email, setEmail] = useState('');
@@ -19,7 +17,6 @@ export function LoginForm() {
   const [role, setRole] = useState('viewer');
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
   const { signIn } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -63,12 +60,11 @@ export function LoginForm() {
     try {
       console.log('Starting signup process for:', email);
       
-      // Sign up the user with proper redirect URL that goes to dashboard
+      // Sign up the user - since email confirmation is disabled, they'll be signed in immediately
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             full_name: fullName,
           },
@@ -96,17 +92,13 @@ export function LoginForm() {
           console.log('Profile role updated to:', role);
         }
 
-        setEmailSent(true);
         toast({
           title: "Account created successfully!",
-          description: "Please check your email and click the confirmation link to complete your registration. You'll be automatically redirected to the dashboard.",
+          description: "Welcome to Resolvix! Redirecting to your dashboard...",
         });
 
-        // Reset form
-        setEmail('');
-        setPassword('');
-        setFullName('');
-        setRole('viewer');
+        // Redirect to dashboard immediately since email confirmation is disabled
+        navigate('/dashboard', { replace: true });
       }
     } catch (error) {
       console.error('Signup error:', error);
@@ -132,50 +124,7 @@ export function LoginForm() {
     setPassword('');
     setFullName('');
     setRole('viewer');
-    setEmailSent(false);
   };
-
-  if (emailSent) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
-        <div className="w-full max-w-md">
-          <Card>
-            <CardHeader className="text-center">
-              <CheckCircle className="w-16 h-16 mx-auto mb-4 text-green-500" />
-              <CardTitle>Check Your Email</CardTitle>
-              <CardDescription>
-                We've sent a confirmation link to <strong>{email}</strong>
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Alert>
-                <Mail className="w-4 h-4" />
-                <AlertDescription>
-                  Click the link in your email to activate your account. You'll be automatically redirected to the dashboard after confirmation.
-                </AlertDescription>
-              </Alert>
-              
-              <div className="space-y-2">
-                <Button 
-                  onClick={() => setEmailSent(false)} 
-                  className="w-full"
-                >
-                  Back to Sign In
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => window.location.href = '/dev-setup'} 
-                  className="w-full"
-                >
-                  Go to Dev Setup
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
