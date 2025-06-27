@@ -23,7 +23,7 @@ export function TicketSystem({ onTicketSelect }: TicketSystemProps) {
   const priorities = ["all", "low", "medium", "high", "critical"];
 
   useEffect(() => {
-    // Load mock tickets
+    // Force regenerate tickets to get updated names
     setTickets(generateMockTickets(25));
   }, []);
 
