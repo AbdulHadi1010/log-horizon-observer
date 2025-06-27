@@ -39,7 +39,7 @@ export const generateMockTickets = (count: number): Ticket[] => {
     "Webhook delivery failures"
   ];
 
-  const assignees = ["John Doe", "Jane Smith", "Bob Johnson", "Alice Wilson", "Charlie Brown"];
+  const assignees = ["Abdul Hadi", "Noor", "Nimra", "Ahmed", "Usman"];
   const priorities: Ticket["priority"][] = ["low", "medium", "high", "critical"];
   const statuses: Ticket["status"][] = ["open", "in-progress", "in-queue", "resolved", "closed"];
 
@@ -65,8 +65,11 @@ export const generateMockTickets = (count: number): Ticket[] => {
 
 export const generateMockChatMessages = (ticketId: string, count: number): ChatMessage[] => {
   const users = [
-    { id: "user1", name: "John Doe" },
-    { id: "user2", name: "Jane Smith" },
+    { id: "user1", name: "Abdul Hadi" },
+    { id: "user2", name: "Noor" },
+    { id: "user3", name: "Nimra" },
+    { id: "user4", name: "Ahmed" },
+    { id: "user5", name: "Usman" },
     { id: "ai", name: "AI Assistant" },
     { id: "system", name: "System" }
   ];

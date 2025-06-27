@@ -55,21 +55,21 @@ export function Dashboard() {
       id: "INC-001",
       title: "Database connection timeout",
       status: "critical",
-      assignee: "John Smith", 
+      assignee: "Abdul Hadi", 
       created: "2 minutes ago"
     },
     {
       id: "INC-002",
       title: "API rate limit exceeded",
       status: "high",
-      assignee: "Sarah Johnson",
+      assignee: "Noor",
       created: "15 minutes ago"
     },
     {
       id: "INC-003", 
       title: "Memory usage spike",
       status: "medium",
-      assignee: "Mike Wilson",
+      assignee: "Ahmed",
       created: "1 hour ago"
     }
   ];
