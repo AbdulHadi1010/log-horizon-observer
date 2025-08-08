@@ -104,6 +104,7 @@ export function LoginForm() {
       console.error('Signup error:', error);
       
       let errorMessage = "Failed to create account";
+      console.log("World working", error.message);
       if (error.message?.includes('already been registered')) {
         errorMessage = "An account with this email already exists. Try signing in instead.";
       }
