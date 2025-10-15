@@ -1,20 +1,42 @@
 
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from "@/integrations/supabase/client";
+
+interface NodeInfo {
+  id: string;
+  Hostname: string;
+  OS: string;
+  OS_Version: string;
+  OS_Release: string;
+  Machine_Architecture: string;
+  MAC_address: string;
+  IP_address: string;
+  Total_RAM_GB: number;
+  Total_Disk_GB: number;
+  Disk_Used_GB: number;
+  Disk_Free_GB: number;
+  Disk_Usage_Percentage: number;
+  CPU_Physical_Core: number;
+  CPU_logical_Core: number;
+}
+
+
+
 import { 
   Activity, 
   AlertTriangle, 
   CheckCircle, 
   Clock, 
   Server, 
-  Database,
+  /*Database,
   Globe,
   Cpu,
   MemoryStick,
-  HardDrive
+  HardDrive*/
 } from 'lucide-react';
 
 interface ServiceStatus {
@@ -26,12 +48,12 @@ interface ServiceStatus {
   lastChecked: string;
 }
 
-interface SystemMetric {
+/*interface SystemMetric {
   name: string;
   value: string;
   status: 'good' | 'warning' | 'critical';
   icon: React.ElementType;
-}
+}*/
 
 export function MonitoringView() {
   const [services] = useState<ServiceStatus[]>([
@@ -68,13 +90,36 @@ export function MonitoringView() {
       lastChecked: '1 minute ago'
     }
   ]);
+  
+  const [nodes, setNodes] = useState<NodeInfo[]>([]);
+  const [selectedNode, setSelectedNode] = useState<NodeInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
 
-  const [systemMetrics] = useState<SystemMetric[]>([
-    { name: 'CPU Usage', value: '45%', status: 'good', icon: Cpu },
-    { name: 'Memory Usage', value: '72%', status: 'warning', icon: MemoryStick },
-    { name: 'Disk Usage', value: '35%', status: 'good', icon: HardDrive },
-    { name: 'Network I/O', value: '12 MB/s', status: 'good', icon: Globe }
-  ]);
+  // Fetch nodes from Supabase
+  useEffect(() => {
+    const fetchNodes = async () => {
+      const { data, error } = await supabase
+        .from("system_info")
+        .select("*")
+        .order("id", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching nodes:", error);
+        setLoading(false);
+        return;
+      }
+
+      if (data) {
+        setNodes(data);
+        setSelectedNode(data[0]); // default select first node
+      }
+
+      setLoading(false);
+    };
+
+    fetchNodes();
+  }, []);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -216,24 +261,51 @@ export function MonitoringView() {
           </div>
         </TabsContent>
 
-        <TabsContent value="metrics" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {systemMetrics.map((metric, index) => (
-              <Card key={index}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{metric.name}</CardTitle>
-                  <metric.icon className="w-4 h-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div className="text-2xl font-bold">{metric.value}</div>
-                    {getStatusIcon(metric.status)}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+<TabsContent value="metrics" className="space-y-6">
+  {loading ? (
+    <p>Loading nodes...</p>
+  ) : (
+    <div className="space-y-2">
+      {nodes.map((node, index) => {
+        const isExpanded = expandedNodeId === node.id;
+        return (
+          <div key={node.id} className="border rounded-lg">
+            {/* Node header (clickable) */}
+            <button
+              className="w-full text-left p-3 flex justify-between items-center"
+              onClick={() =>
+                setExpandedNodeId(isExpanded ? null : node.id)
+              }
+            >
+              <span className="font-medium">Node {index + 1}</span>
+              <span>{isExpanded ? '-' : '+'}</span>
+            </button>
+
+            {/* Node details */}
+            {isExpanded && (
+              <div className="w-full text-left p-3">
+                <div><strong>Hostname:</strong> {node.Hostname}</div>
+                <div><strong>OS:</strong> {node.OS} {node.OS_Version} ({node.OS_Release})</div>
+                <div><strong>Machine Architecture:</strong> {node.Machine_Architecture}</div>
+                <div><strong>MAC Address:</strong> {node.MAC_address}</div>
+                <div><strong>IP Address:</strong> {node.IP_address}</div>
+                <div><strong>Total RAM (GB):</strong> {node.Total_RAM_GB}</div>
+                <div><strong>Total Disk (GB):</strong> {node.Total_Disk_GB}</div>
+                <div><strong>Disk Used (GB):</strong> {node.Disk_Used_GB}</div>
+                <div><strong>Disk Free (GB):</strong> {node.Disk_Free_GB}</div>
+                <div><strong>Disk Usage %:</strong> {node.Disk_Usage_Percentage}%</div>
+                <div><strong>CPU Physical Cores:</strong> {node.CPU_Physical_Core}</div>
+                <div><strong>CPU Logical Cores:</strong> {node.CPU_logical_Core}</div>
+              </div>
+            )}
           </div>
-        </TabsContent>
+        );
+      })}
+    </div>
+  )}
+</TabsContent>
+
+
 
         <TabsContent value="alerts" className="space-y-6">
           <Card>

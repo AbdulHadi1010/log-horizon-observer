@@ -9,9 +9,9 @@ type UserRole = Database['public']['Enums']['user_role'];
 interface Profile {
   id: string;
   role: UserRole;
-  email?: string;
-  full_name?: string;
-  avatar_url?: string;
+  email: string | null;      
+  full_name: string | null;    
+  avatar_url: string | null; 
 }
 
 interface AuthContextType {
@@ -227,7 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAdmin = profile?.role === 'admin';
   const isEngineer = profile?.role === 'engineer';
-  const isViewer = profile?.role === 'viewer';
+  const isViewer = profile?.role === 'support';
 
   // Don't render until initialized
   if (!initialized) {

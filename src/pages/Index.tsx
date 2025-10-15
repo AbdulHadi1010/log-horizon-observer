@@ -62,7 +62,7 @@ export default function Index() {
             </Button>
           </div>
           <p className="text-sm text-muted-foreground mt-4">
-            Choose your role: Admin, Engineer, or Viewer during signup
+            Choose your role: Admin, Engineer, or Support during signup
           </p>
         </div>
 
@@ -124,9 +124,6 @@ export default function Index() {
           <div className="space-x-4">
             <Button onClick={() => navigate('/login')} size="lg" className="px-8">
               Get Started Now
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/dev-setup')} size="lg">
-              Try Demo Setup
             </Button>
           </div>
         </div>

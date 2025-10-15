@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bot, ChevronLeft, ChevronRight } from "lucide-react";
-import { ChatMessage } from "../../services/ticketService";
+import { type ChatMessage } from "../../services/ticketService";
 
 interface CollapsibleAIAssistantProps {
   ticketId: string;
@@ -13,7 +13,6 @@ interface CollapsibleAIAssistantProps {
 }
 
 export function CollapsibleAIAssistant({ 
-  ticketId, 
   chatMessages, 
   onSendMessage 
 }: CollapsibleAIAssistantProps) {
