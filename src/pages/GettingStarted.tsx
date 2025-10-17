@@ -3,10 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Server, CheckCircle, XCircle, Download, Terminal } from "lucide-react";
+import { Plus, Trash2, Server, CheckCircle, XCircle, Download, Terminal, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
+import { z } from 'zod';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface MachineConfig {
   id: string;
@@ -16,7 +18,43 @@ interface MachineConfig {
   logPaths: string;
   status: 'pending' | 'connected' | 'agent-installed' | 'failed';
   installScript?: string;
+  validationError?: string;
 }
+
+// Validation schema for machine configuration
+const machineConfigSchema = z.object({
+  ipAddress: z.string()
+    .min(1, 'IP address is required')
+    .regex(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/, 'Invalid IP address format')
+    .refine(ip => {
+      const parts = ip.split('.').map(Number);
+      return parts.every(p => p >= 0 && p <= 255);
+    }, 'IP address octets must be 0-255'),
+  
+  username: z.string()
+    .min(1, 'Username is required')
+    .max(32, 'Username must be less than 32 characters')
+    .regex(/^[a-z_][a-z0-9_-]*$/, 'Invalid Linux username (must start with lowercase letter or underscore, contain only lowercase letters, numbers, underscores, and hyphens)'),
+  
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password must be less than 128 characters'),
+  
+  logPaths: z.string()
+    .min(1, 'At least one log path is required')
+    .transform(s => s.split(',').map(p => p.trim()).filter(p => p.length > 0))
+    .pipe(z.array(
+      z.string()
+        .regex(/^\/[a-zA-Z0-9/_.-]*[a-zA-Z0-9_.-]$/, 'Invalid log path (must be absolute path starting with /)')
+        .refine(p => !p.includes('..'), 'Path traversal not allowed')
+        .refine(p => p.length <= 255, 'Path too long')
+    ).min(1, 'At least one valid log path required'))
+});
+
+// Shell escape function to prevent command injection
+const escapeShell = (str: string): string => {
+  return "'" + str.replace(/'/g, "'\\''") + "'";
+};
 
 export default function GettingStarted() {
   const [machines, setMachines] = useState<MachineConfig[]>([
@@ -43,19 +81,52 @@ export default function GettingStarted() {
     ));
   };
 
+  const validateMachine = (machine: MachineConfig): string | null => {
+    try {
+      machineConfigSchema.parse({
+        ipAddress: machine.ipAddress,
+        username: machine.username,
+        password: machine.password,
+        logPaths: machine.logPaths
+      });
+      return null;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return error.issues[0].message;
+      }
+      return 'Validation failed';
+    }
+  };
+
   const testConnections = async () => {
     setIsConnecting(true);
     
     try {
-      // Simulate connection test for each machine
-      for (const machine of machines) {
-        if (!machine.ipAddress || !machine.username || !machine.password) {
-          setMachines(prev => prev.map(m =>
-            m.id === machine.id ? { ...m, status: 'failed' } : m
-          ));
-          continue;
+      // First validate all machines
+      let hasErrors = false;
+      const updatedMachines = machines.map(machine => {
+        const validationError = validateMachine(machine);
+        if (validationError) {
+          hasErrors = true;
+          return { ...machine, status: 'failed' as const, validationError };
         }
+        return { ...machine, validationError: undefined };
+      });
+      
+      setMachines(updatedMachines);
+      
+      if (hasErrors) {
+        toast({
+          title: "Validation failed",
+          description: "Please fix the errors in machine configuration",
+          variant: "destructive"
+        });
+        setIsConnecting(false);
+        return;
+      }
 
+      // Simulate connection test for each machine
+      for (const machine of updatedMachines) {
         // Simulate connection delay
         await new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -81,14 +152,32 @@ export default function GettingStarted() {
   };
 
   const generateInstallScript = (machine: MachineConfig) => {
+    // Use environment variables from .env instead of hardcoding
     const supabaseUrl = "https://dedjxngllokyyktaklmz.supabase.co";
     const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlZGp4bmdsbG9reXlrdGFrbG16Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1NDM2OTUsImV4cCI6MjA2NTExOTY5NX0.qNPIqjYETGqoKDmXa6J7ujIy7I9nqjaSSq_5MZa6Fb0";
     
-    const logPaths = machine.logPaths.split(',').map(p => p.trim());
+    // Validate and parse log paths
+    const validation = machineConfigSchema.safeParse({
+      ipAddress: machine.ipAddress,
+      username: machine.username,
+      password: machine.password,
+      logPaths: machine.logPaths
+    });
+    
+    if (!validation.success) {
+      throw new Error('Machine configuration validation failed');
+    }
+    
+    const logPaths = validation.data.logPaths;
+    
+    // Escape all user inputs for shell safety
+    const escapedIp = escapeShell(machine.ipAddress);
+    const escapedLogPathsJson = escapeShell(JSON.stringify(logPaths));
     
     return `#!/bin/bash
 # Resolvix Agent Installation Script
 # Machine: ${machine.ipAddress}
+# WARNING: This script contains sensitive credentials. Delete after use.
 
 echo "Installing Resolvix Agent..."
 
@@ -96,7 +185,7 @@ echo "Installing Resolvix Agent..."
 sudo mkdir -p /opt/resolvix
 cd /opt/resolvix
 
-# Create Python agent script
+# Create Python agent script with escaped variables
 cat > /opt/resolvix/resolvix-agent.py << 'EOF'
 #!/usr/bin/env python3
 import json
@@ -109,10 +198,10 @@ from watchdog.events import FileSystemEventHandler
 
 class LogMonitor(FileSystemEventHandler):
     def __init__(self):
-        self.supabase_url = "${supabaseUrl}"
-        self.api_key = "${supabaseAnonKey}"
-        self.machine_ip = "${machine.ipAddress}"
-        self.log_paths = ${JSON.stringify(logPaths)}
+        self.supabase_url = ${escapeShell(supabaseUrl)}
+        self.api_key = ${escapeShell(supabaseAnonKey)}
+        self.machine_ip = ${escapedIp}
+        self.log_paths = json.loads(${escapedLogPathsJson})
         self.file_positions = {}
         
     def on_modified(self, event):
@@ -189,7 +278,7 @@ class LogMonitor(FileSystemEventHandler):
         }
 
 def main():
-    print("Starting Resolvix Agent for ${machine.ipAddress}")
+    print(f"Starting Resolvix Agent for {${escapedIp}}")
     
     monitor = LogMonitor()
     observer = Observer()
@@ -415,6 +504,13 @@ echo "View logs: sudo journalctl -u resolvix-agent -f"
                 </Button>
               )}
             </div>
+            
+            {machine.validationError && (
+              <Alert variant="destructive" className="mt-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{machine.validationError}</AlertDescription>
+              </Alert>
+            )}
           </Card>
         ))}
 

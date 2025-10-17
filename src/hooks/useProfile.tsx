@@ -29,14 +29,27 @@ export function useProfile() {
     const fetchProfile = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
+        
+        // Fetch profile and role separately (role is now in user_roles table)
+        const [profileResult, roleResult] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('id, email, full_name, avatar_url, created_at, updated_at')
+            .eq('id', user.id)
+            .single(),
+          supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', user.id)
+            .order('role', { ascending: false }) // Get highest role
+            .limit(1)
+            .maybeSingle()
+        ]);
 
-        if (error) throw error;
-        setProfile(data);
+        if (profileResult.error) throw profileResult.error;
+        
+        const role = roleResult.data?.role || 'support';
+        setProfile({ ...profileResult.data, role });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch profile');
       } finally {
@@ -51,16 +64,25 @@ export function useProfile() {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', user.id)
-        .select()
-        .single();
+      // Remove role from updates if present (role can't be updated via profiles table)
+      const { role, ...profileUpdates } = updates;
+      
+      if (Object.keys(profileUpdates).length > 0) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .update(profileUpdates)
+          .eq('id', user.id)
+          .select('id, email, full_name, avatar_url, created_at, updated_at')
+          .single();
 
-      if (error) throw error;
-      setProfile(data);
-      return data;
+        if (error) throw error;
+        
+        // Merge with existing role
+        setProfile({ ...data, role: profile?.role || 'support' });
+        return { ...data, role: profile?.role || 'support' };
+      }
+      
+      return profile;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update profile');
       throw err;
