@@ -1,1 +1,13 @@
 project_id = "dedjxngllokyyktaklmz"
+
+[functions.test-ssh-connection]
+verify_jwt = false
+
+[functions.install-agent]
+verify_jwt = true
+
+[functions.save-machine-config]
+verify_jwt = true
+
+[functions.get-machine-configs]
+verify_jwt = true

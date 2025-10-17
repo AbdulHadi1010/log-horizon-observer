@@ -110,7 +110,10 @@ export function MonitoringView() {
       }
 
       if (data) {
-        setNodes(data);
+        setNodes(data.map(node => ({
+          ...node,
+          id: String(node.id)
+        })));
       }
 
       setLoading(false);
