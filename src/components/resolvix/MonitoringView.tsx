@@ -92,7 +92,6 @@ export function MonitoringView() {
   ]);
   
   const [nodes, setNodes] = useState<NodeInfo[]>([]);
-  const [selectedNode, setSelectedNode] = useState<NodeInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
 
@@ -112,7 +111,6 @@ export function MonitoringView() {
 
       if (data) {
         setNodes(data);
-        setSelectedNode(data[0]); // default select first node
       }
 
       setLoading(false);

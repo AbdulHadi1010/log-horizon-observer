@@ -42,9 +42,7 @@ export function TicketDetails({ ticketId, onBack }: TicketDetailsProps) {
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [saving, setSaving] = useState(false);
   const chatEndRef = useRef<HTMLDivElement | null>(null);  
-  const [userCache, setUserCache] = useState<Record<string, string>>({});
   const userCacheRef = useRef<Record<string, string>>({});
 
   const statuses = ["open", "in-progress", "in-queue", "resolved", "closed", "reopened"];
@@ -128,7 +126,6 @@ useEffect(() => {
     });
 
     setChatMessages(formatted);
-    setUserCache(initialCache);
     userCacheRef.current = initialCache; // keep ref in sync
   };
 
@@ -192,9 +189,8 @@ useEffect(() => {
               }
 
               const name = profile?.full_name || "Unknown";
-              // update cache (both state and ref)
+              // update cache
               userCacheRef.current = { ...userCacheRef.current, [msg.user_id]: name };
-              setUserCache(userCacheRef.current);
               appendMessage(name);
             } catch (err) {
               console.error("Unexpected error fetching profile:", err);
@@ -224,14 +220,12 @@ useEffect(() => {
     const updatedTicket = { ...ticket, ...field };
     setTicket(updatedTicket);
 
-    setSaving(true);
     const { error } = await supabase
       .from("tickets")
       .update({ ...field, updated_at: new Date().toISOString() })
       .eq("id", ticket.id);
 
     if (error) console.error("Error updating ticket:", error);
-    setSaving(false);
   };
 
  const handleSendMessage = async () => {
@@ -246,7 +240,7 @@ useEffect(() => {
     return;
   }
 
-  const { data: profile } = await supabase
+  await supabase
     .from("profiles")
     .select("full_name")
     .eq("id", user.id)

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Play, Pause, Download, Filter, AlertTriangle } from "lucide-react";
-import { generateMockLog } from "../../services/logService.ts";
+import { generateMockLog } from "@/services/logService";
 
 // 👇 Define Log type
 interface Log {

@@ -1,5 +1,5 @@
 // src/components/team/TeamView.tsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client"; // adjust if needed
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -81,7 +81,6 @@ export function TeamView() {
   // Invite dialog state (lightweight — not creating auth user here)
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState("");
-  const [newMemberRole, setNewMemberRole] = useState<Role>("support");
   const [toastMessage, setToastMessage] = useState("");
 
 
@@ -125,7 +124,6 @@ setTeams((prev) =>
       // Group members by role
       const engineers = mapped.filter((m) => m.role === "engineer").map((m) => m.id);
       const supports = mapped.filter((m) => m.role === "support").map((m) => m.id);
-      const admins = mapped.filter((m) => m.role === "admin").map((m) => m.id);
 
       if (t.name === "Platform Engineering") {
         return { ...t, members: engineers, lead: engineers[0] ?? "" };
@@ -251,7 +249,7 @@ setTeams((prev) =>
 
   try {
     // Send a magic link to the user email
-    const { data, error } = await supabase.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithOtp({
       email: newMemberEmail,
       options: {
         emailRedirectTo: `${window.location.origin}/Login`, // user lands on signup/signin page

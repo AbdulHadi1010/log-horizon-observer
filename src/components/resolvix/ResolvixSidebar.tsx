@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { NavLink, useLocation } from "react-router-dom";
 
 // type for menu items
 interface MenuItem {
@@ -35,27 +36,19 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { title: "Dashboard", url: "#dashboard", icon: Home, id: "dashboard" },
-  { title: "Logs Explorer", url: "#logs", icon: FileText, id: "logs" },
-  { title: "Tickets", url: "#tickets", icon: Ticket, id: "tickets" },
-  { title: "Monitoring", url: "#monitoring", icon: Activity, id: "monitoring" },
-  { title: "Notifications", url: "#notifications", icon: Bell, id: "notifications" },
-  { title: "Team", url: "#team", icon: Users, id: "team" },
-  { title: "Settings", url: "#settings", icon: Settings, id: "settings" },
+  { title: "Dashboard", url: "/dashboard", icon: Home, id: "dashboard" },
+  { title: "Logs Explorer", url: "/logs", icon: FileText, id: "logs" },
+  { title: "Tickets", url: "/tickets", icon: Ticket, id: "tickets" },
+  { title: "Monitoring", url: "/monitoring", icon: Activity, id: "monitoring" },
+  { title: "Notifications", url: "/notifications", icon: Bell, id: "notifications" },
+  { title: "Team", url: "/team", icon: Users, id: "team" },
+  { title: "Settings", url: "/settings", icon: Settings, id: "settings" },
 ];
 
-// Props for ResolvixSidebar
-interface ResolvixSidebarProps {
-  activeSection?: string;
-  onSectionChange?: (sectionId: string) => void;
-}
-
-export function ResolvixSidebar({
-  activeSection = "dashboard",
-  onSectionChange,
-}: ResolvixSidebarProps) {
+export function ResolvixSidebar() {
   const { signOut } = useAuth();
   const { profile } = useProfile();
+  const location = useLocation();
 
   // define allowed badge variants
   type BadgeVariant = "destructive" | "default" | "secondary" | "outline";
@@ -111,12 +104,11 @@ export function ResolvixSidebar({
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.id}>
-                  <SidebarMenuButton
-                    isActive={activeSection === item.id}
-                    onClick={() => onSectionChange?.(item.id)}
-                  >
-                    <item.icon className="w-4 h-4 flex-shrink-0" />
-                    <span className="truncate">{item.title}</span>
+                  <SidebarMenuButton asChild isActive={location.pathname === item.url}>
+                    <NavLink to={item.url}>
+                      <item.icon className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">{item.title}</span>
+                    </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
