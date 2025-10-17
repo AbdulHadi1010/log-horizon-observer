@@ -94,11 +94,11 @@ useEffect(() => {
     setTicket(data);
   };
 
-  // Fetch existing messages and build initial userCache
+  // Fetch existing messages - optimized without join
   const fetchMessages = async () => {
     const { data, error } = await supabase
       .from("chat_messages")
-      .select("*, profiles(full_name)")
+      .select("*")
       .eq("ticket_id", ticketId)
       .order("created_at", { ascending: true });
 
@@ -107,26 +107,34 @@ useEffect(() => {
       return;
     }
 
-    // build cache from joined profile data (if present)
-    const initialCache: Record<string, string> = {};
-    const formatted = (data || []).map((msg: any) => {
-      if (msg.user_id && msg.profiles?.full_name) {
-        initialCache[msg.user_id] = msg.profiles.full_name;
-      }
+    // Get unique user IDs
+    const userIds = [...new Set((data || []).map(msg => msg.user_id).filter(Boolean))];
+    
+    // Batch fetch all user profiles at once
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", userIds);
 
-      return {
-        id: msg.id,
-        ticketId: msg.ticket_id,
-        userId: msg.user_id,
-        userName: msg.profiles?.full_name || "Unknown",
-        message: msg.message,
-        timestamp: msg.created_at,
-        type: "user" as ChatMessage["type"],
-      } as ChatMessage;
+    // Build cache from profiles
+    const initialCache: Record<string, string> = {};
+    (profiles || []).forEach(p => {
+      initialCache[p.id] = p.full_name || "Unknown";
     });
 
+    // Format messages using cache
+    const formatted = (data || []).map((msg: any) => ({
+      id: msg.id,
+      ticketId: msg.ticket_id,
+      userId: msg.user_id,
+      userName: initialCache[msg.user_id] || "Unknown",
+      message: msg.message,
+      timestamp: msg.created_at,
+      type: "user" as ChatMessage["type"],
+    } as ChatMessage));
+
     setChatMessages(formatted);
-    userCacheRef.current = initialCache; // keep ref in sync
+    userCacheRef.current = initialCache;
   };
 
   fetchTicket();
