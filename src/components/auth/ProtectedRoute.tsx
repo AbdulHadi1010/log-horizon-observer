@@ -40,7 +40,7 @@ export function ProtectedRoute({
   if (requiredRole && profile?.role !== requiredRole) {
     // Check role hierarchy: admin > engineer > viewer
     const roleHierarchy: Record<UserRole, number> = {
-      viewer: 1,
+      support: 1,
       engineer: 2,
       admin: 3
     };

@@ -18,7 +18,7 @@ export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<UserRole>('viewer');
+  const [role, setRole] = useState<UserRole>('support');
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -108,13 +108,19 @@ export function LoginForm() {
         setEmail('');
         setPassword('');
         setFullName('');
-        setRole('viewer');
+        setRole('support');
       }
     } catch (error: any) {
       console.error('Signup error:', error);
       
       let errorMessage = "Failed to create account";
-      if (error.message?.includes('already been registered')) {
+      console.log("World working", error.message);
+      if (error.message?.includes('User already registered')) {
+        console.log("runnning");
+        errorMessage = "An account with this email already exists. Try signing in instead.";
+      }
+      if (error.message == 'User already registered') {
+        console.log("runnning 2");
         errorMessage = "An account with this email already exists. Try signing in instead.";
       }
       
@@ -133,7 +139,7 @@ export function LoginForm() {
     setEmail('');
     setPassword('');
     setFullName('');
-    setRole('viewer');
+    setRole('support');
     setEmailSent(false);
   };
 
@@ -163,13 +169,6 @@ export function LoginForm() {
                   className="w-full"
                 >
                   Back to Sign In
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => window.location.href = '/dev-setup'} 
-                  className="w-full"
-                >
-                  Go to Dev Setup
                 </Button>
               </div>
             </CardContent>
@@ -252,7 +251,7 @@ export function LoginForm() {
                     <SelectContent>
                       <SelectItem value="admin">Admin - Full access to all features</SelectItem>
                       <SelectItem value="engineer">Engineer - Manage tickets and logs</SelectItem>
-                      <SelectItem value="viewer">Viewer - Read-only access</SelectItem>
+                      <SelectItem value="support">Support - Provide support</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -279,17 +278,7 @@ export function LoginForm() {
               </Button>
             </div>
 
-            {!isSignUp && (
-              <div className="mt-4 text-center">
-                <Button
-                  variant="outline"
-                  onClick={() => window.location.href = '/dev-setup'}
-                  className="text-sm"
-                >
-                  Try Demo Setup
-                </Button>
-              </div>
-            )}
+            {!isSignUp }
           </CardContent>
         </Card>
       </div>

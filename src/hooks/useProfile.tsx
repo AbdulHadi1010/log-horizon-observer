@@ -5,12 +5,12 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface UserProfile {
   id: string;
-  email?: string;
-  full_name?: string;
-  role: 'admin' | 'engineer' | 'viewer';
-  avatar_url?: string;
-  created_at?: string;
-  updated_at?: string;
+  email: string | null;      
+  full_name: string | null;    
+  avatar_url: string | null; 
+  role: 'admin' | 'engineer' | 'support';
+  created_at?: string|null;
+  updated_at?: string|null;
 }
 
 export function useProfile() {
@@ -74,6 +74,6 @@ export function useProfile() {
     updateProfile,
     isAdmin: profile?.role === 'admin',
     isEngineer: profile?.role === 'engineer',
-    isViewer: profile?.role === 'viewer',
+    isViewer: profile?.role === 'support',
   };
 }
