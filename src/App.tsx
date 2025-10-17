@@ -21,6 +21,8 @@ import MonitoringPage from "./pages/Monitoring";
 import NotificationsPage from "./pages/Notifications";
 import TeamPage from "./pages/Team";
 import SettingsPage from "./pages/Settings";
+import GettingStartedPage from "./pages/GettingStarted";
+import LiveLogsPage from "./pages/LiveLogs";
 
 const queryClient = new QueryClient();
 
@@ -134,6 +136,26 @@ const App = () => (
                   <ProtectedRoute>
                     <DashboardLayout>
                       <SettingsPage />
+                    </DashboardLayout>
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/getting-started" 
+                element={
+                  <ProtectedRoute>
+                    <DashboardLayout>
+                      <GettingStartedPage />
+                    </DashboardLayout>
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/live-logs" 
+                element={
+                  <ProtectedRoute>
+                    <DashboardLayout>
+                      <LiveLogsPage />
                     </DashboardLayout>
                   </ProtectedRoute>
                 } 

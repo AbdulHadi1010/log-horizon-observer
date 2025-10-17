@@ -22,6 +22,8 @@ import {
   Users,
   Settings,
   LogOut,
+  PlayCircle,
+  Zap,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
@@ -37,6 +39,8 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { title: "Dashboard", url: "/dashboard", icon: Home, id: "dashboard" },
+  { title: "Getting Started", url: "/getting-started", icon: Zap, id: "getting-started" },
+  { title: "Live Logs", url: "/live-logs", icon: PlayCircle, id: "live-logs" },
   { title: "Logs Explorer", url: "/logs", icon: FileText, id: "logs" },
   { title: "Tickets", url: "/tickets", icon: Ticket, id: "tickets" },
   { title: "Monitoring", url: "/monitoring", icon: Activity, id: "monitoring" },

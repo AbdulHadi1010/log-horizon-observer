@@ -353,14 +353,14 @@ useEffect(() => {
         </Card>
       </div>
 
-      {/* Chat Section */}
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full w-full max-w-[60%] p-6">
-          <Card className="h-full flex flex-col">
-            <CardHeader className="border-b">
+      {/* Chat Section - Fixed scrolling */}
+      <div className="px-6 pb-6">
+        <div className="w-full max-w-[60%]">
+          <Card className="flex flex-col h-[500px]">
+            <CardHeader className="border-b flex-shrink-0">
               <CardTitle>Team Chat</CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col p-0">
+            <CardContent className="flex-1 flex flex-col p-0 min-h-0">
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {teamChatMessages.map(msg => (
                   <div key={msg.id} className="flex gap-3">
@@ -376,10 +376,10 @@ useEffect(() => {
                     </div>
                   </div>
                 ))}
-                <div ref={chatEndRef} /> {/* <-- Auto-scroll target */}
+                <div ref={chatEndRef} />
               </div>
 
-              <div className="border-t p-4">
+              <div className="border-t p-4 flex-shrink-0">
                 <div className="flex gap-2">
                   <Input
                     placeholder="Type a message..."
