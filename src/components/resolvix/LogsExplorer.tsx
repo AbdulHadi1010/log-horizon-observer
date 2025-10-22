@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,226 +7,392 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Play, Pause, Download, Filter, AlertTriangle } from "lucide-react";
-import { generateMockLog } from "../../services/logService.ts";
+import { Search, Play, Pause, Download, Filter, Server } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-// 👇 Define Log type
 interface Log {
   id: string;
-  message: string;
-  source: string;
-  level: "info" | "warning" | "error" | "debug";
-  timestamp: string | number | Date;
+  timestamp: string;
+  level: string;
+  source?: string;
+  metadata: { raw_log: string };
+  created_at?: string;
+ 
+}
+
+interface SystemNode {
+  id: string;
+  Hostname: string;
+  OS: string;
+  OS_Version: string;
+  OS_Release: string;
+  Machine_Architecture: string;
+  MAC_address: string;
+  IP_address: string;
+  Total_RAM_GB: number;
+  Total_Disk_GB: number;
+  Disk_Used_GB: number;
+  Disk_Free_GB: number;
+  Disk_Usage_Percentage: number;
+  CPU_Physical_Core: number;
+  CPU_logical_Core: number;
 }
 
 export function LogsExplorer() {
   const [logs, setLogs] = useState<Log[]>([]);
-  const [isStreaming, setIsStreaming] = useState<boolean>(true);
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedSeverity, setSelectedSeverity] = useState<string>("all");
-  const [selectedSource, setSelectedSource] = useState<string>("all");
+  const [selectedNode, setSelectedNode] = useState<string>("");
+  const [nodes, setNodes] = useState<SystemNode[]>([]);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
-  const logsEndRef = useRef<HTMLDivElement | null>(null);
+  const logsEndRef = useRef<HTMLTableRowElement | null>(null);
+  const channelRef = useRef<any>(null);
 
-  const sources = ["all", "auth-service", "payment-service", "user-service", "notification-service", "database"];
   const severities = ["all", "info", "warning", "error", "debug"];
 
-  // Simulate log generation
+  // 🔹 Fetch available nodes
   useEffect(() => {
-    if (!isStreaming) return;
+    const fetchNodes = async () => {
+      const { data, error } = await supabase
+        .from("system_info")
+        .select("*")
+        .order("Hostname");
 
-    const interval = setInterval(() => {
-      const newLog: Log = generateMockLog();
-      setLogs(prev => [newLog, ...prev].slice(0, 1000)); // Keep last 1000 logs
-    }, Math.random() * 3000 + 1000);
+      if (error) {
+        console.error("Error fetching nodes:", error);
+        toast.error("Failed to load nodes");
+        return;
+      }
+      setNodes(data || []);
+    };
 
-    return () => clearInterval(interval);
-  }, [isStreaming]);
+    fetchNodes();
+  }, []);
 
-  // Auto-scroll to bottom when new logs arrive
+  // 🔹 Setup realtime log streaming (Option A)
+  useEffect(() => {
+    if (!isStreaming || !selectedNode) {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      return;
+    }
+
+    console.log("Setting up realtime subscription for node:", selectedNode);
+    console.log("[DEBUG] Subscribing for:", selectedNode);
+    const channel = supabase
+      .channel("realtime:logs")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "logs"
+
+ },
+        (payload) => {
+          console.log("New log received:", payload.new);
+          setLogs((prev) => [payload.new as Log, ...prev].slice(0, 1000));
+        }
+      )
+      .subscribe((status) => {
+      console.log("[DEBUG] Subscription status changed:", status);
+    });
+
+    channelRef.current = channel;
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, [isStreaming, selectedNode]);
+
+  // 🔹 Auto-scroll when new logs arrive
   useEffect(() => {
     if (logsEndRef.current && isStreaming) {
       logsEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [logs, isStreaming]);
 
-  const filteredLogs = logs.filter(log => {
+  // 🔹 Filter logs
+  const filteredLogs = logs.filter((log) => {
     const matchesSearch =
       searchTerm === "" ||
-      log.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.source.toLowerCase().includes(searchTerm.toLowerCase());
+      (log.metadata?.raw_log || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
 
-    const matchesSource = selectedSource === "all" || log.source === selectedSource;
-    const matchesSeverity = selectedSeverity === "all" || log.level === selectedSeverity;
+    const matchesSeverity =
+      selectedSeverity === "all" || log.level === selectedSeverity;
 
-    return matchesSearch && matchesSource && matchesSeverity;
+    return matchesSearch && matchesSeverity;
   });
 
-  const getLevelColor = (level: Log["level"]): "destructive" | "secondary" | "default" | "outline" => {
-    switch (level) {
-      case "error":
-        return "destructive";
-      case "warning":
-        return "secondary";
-      case "info":
-        return "default";
-      case "debug":
-        return "outline";
-      default:
-        return "outline";
+  // 🔹 Start / Stop streaming
+  const handleToggleStreaming = async () => {
+    if (!selectedNode) {
+      toast.error("Please select a node first");
+      return;
+    }
+
+    const selectedNodeInfo = nodes.find((n) => n.IP_address === selectedNode);
+    if (!selectedNodeInfo) {
+      toast.error("Selected node info not found");
+      return;
+    }
+
+    if (!isStreaming) {
+      // Call backend to start agent
+      const res = await fetch("http://localhost:3000/api/logs_starter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ node_ip: selectedNodeInfo.IP_address }),
+      });
+
+      if (res.ok) {
+        toast.success(`Started log collection for ${selectedNodeInfo.Hostname}`);
+        setIsStreaming(true);
+      } else {
+        toast.error("Failed to start collector");
+        const error = await res.json();
+        console.error(error);
+      }
+    } else {
+      setIsStreaming(false);
+      toast.info("Log collection stopped");
     }
   };
 
-  const formatTimestamp = (timestamp: string | number | Date): string => {
-    return new Date(timestamp).toLocaleString();
+  // 🔹 Node selection change
+  const handleNodeChange = (nodeId: string) => {
+    setLogs([]);
+    setSelectedNode(nodeId);
+    setIsStreaming(false);
   };
 
-  const truncateMessage = (message: string, maxLength = 100): string => {
-    return message.length > maxLength ? message.substring(0, maxLength) + "..." : message;
+  // 🔹 Export logs as JSON
+  const handleExport = () => {
+    const dataStr = JSON.stringify(filteredLogs, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `logs-export-${new Date().toISOString()}.json`;
+    link.click();
+    toast.success("Logs exported successfully");
   };
+
+  // 🔹 Get color for severity badge
+  const getSeverityColor = (level: string) => {
+    const colors: Record<string, string> = {
+      info: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+      warning: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
+      error: "bg-red-500/10 text-red-500 border-red-500/20",
+      debug: "bg-gray-500/10 text-gray-500 border-gray-500/20",
+    };
+    return colors[level] || colors.info;
+  };
+
+  const selectedNodeInfo = nodes.find((n) => n.id === selectedNode);
 
   return (
-    <div className="h-screen flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-6 flex-shrink-0">
-        <div>
-          <h2 className="text-2xl font-bold">Logs Explorer</h2>
-          <p className="text-muted-foreground">Search and filter system logs in real-time</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => setIsStreaming(!isStreaming)}
-            variant={isStreaming ? "default" : "outline"}
-            size="sm"
-          >
-            {isStreaming ? <Pause className="w-4 h-4 mr-1" /> : <Play className="w-4 h-4 mr-1" />}
-            {isStreaming ? "Pause" : "Resume"}
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-1" />
-            Export
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Logs Explorer</h1>
+            <p className="text-muted-foreground mt-1">
+              Real-time log monitoring and analysis
+            </p>
+          </div>
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="w-4 h-4 mr-2" /> Export
           </Button>
         </div>
-      </div>
 
-      {/* Filters */}
-      <div className="px-6 pb-4 flex-shrink-0">
+        {/* Filters */}
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Filter className="w-4 h-4" />
-              Filters
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="w-5 h-5" /> Filters
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Search</label>
               <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search logs..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8"
+                  className="pl-10"
                 />
               </div>
-              <Select value={selectedSource} onValueChange={setSelectedSource}>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Severity</label>
+              <Select
+                value={selectedSeverity}
+                onValueChange={setSelectedSeverity}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select source" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {sources.map((source) => (
-                    <SelectItem key={source} value={source}>
-                      {source === "all" ? "All Sources" : source}
+                  {severities.map((sev) => (
+                    <SelectItem key={sev} value={sev}>
+                      {sev.charAt(0).toUpperCase() + sev.slice(1)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={selectedSeverity} onValueChange={setSelectedSeverity}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select severity" />
-                </SelectTrigger>
-                <SelectContent>
-                  {severities.map((severity) => (
-                    <SelectItem key={severity} value={severity}>
-                      {severity === "all" ? "All Severities" : severity.toUpperCase()}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{filteredLogs.length} entries</Badge>
-                {isStreaming && (
-                  <Badge variant="default" className="animate-pulse">
-                    Live
-                  </Badge>
-                )}
-              </div>
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Log Table */}
-      <div className="flex-1 px-6 pb-6 min-h-0">
-        <Card className="h-full flex flex-col">
-          <CardHeader className="pb-3 flex-shrink-0">
-            <CardTitle>Log Stream</CardTitle>
+        {/* Node Selection */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Server className="w-5 h-5" /> Node
+            </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 overflow-hidden p-0">
-            <div className="h-full overflow-auto">
-              <Table>
-                <TableHeader className="sticky top-0 bg-card z-10">
-                  <TableRow>
-                    <TableHead className="w-[180px]">Timestamp</TableHead>
-                    <TableHead className="w-[80px]">Level</TableHead>
-                    <TableHead className="w-[150px]">Source</TableHead>
-                    <TableHead>Message</TableHead>
-                    <TableHead className="w-[80px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredLogs.map((log) => (
-                    <TableRow
-                      key={log.id}
-                      className={`${log.level === "error" ? "bg-destructive/5" : ""} hover:bg-muted/50`}
-                    >
-                      <TableCell className="font-mono text-xs">{formatTimestamp(log.timestamp)}</TableCell>
-                      <TableCell>
-                        <Badge variant={getLevelColor(log.level)} className="text-xs">
-                          {log.level.toUpperCase()}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-medium text-sm">{log.source}</TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <p className="text-sm">
-                            {expandedLog === log.id ? log.message : truncateMessage(log.message)}
-                          </p>
-                          {log.message.length > 100 && (
-                            <Button
-                              variant="link"
-                              size="sm"
-                              className="h-auto p-0 text-xs"
-                              onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}
-                            >
-                              {expandedLog === log.id ? "Show less" : "Show more"}
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {log.level === "error" && (
-                          <Button variant="outline" size="sm">
-                            <AlertTriangle className="w-3 h-3 mr-1" />
-                            Ticket
-                          </Button>
-                        )}
-                      </TableCell>
+          <CardContent>
+            <div className="flex items-end gap-4">
+              <div className="flex-1 space-y-2">
+                <label className="text-sm font-medium">Select Node</label>
+                <Select value={selectedNode} onValueChange={handleNodeChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a node to monitor..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {nodes.map((node) => (
+                      <SelectItem key={node.id} value={node.IP_address}>
+                        {node.Hostname} ({node.IP_address})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button
+                onClick={handleToggleStreaming}
+                disabled={!selectedNode}
+                variant={isStreaming ? "destructive" : "default"}
+                className="min-w-[120px]"
+              >
+                {isStreaming ? (
+                  <>
+                    <Pause className="w-4 h-4 mr-2" /> Pause
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 mr-2" /> Start
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {selectedNodeInfo && (
+              <div className="text-sm text-muted-foreground mt-2">
+                Monitoring:{" "}
+                <span className="font-medium text-foreground">
+                  {selectedNodeInfo.Hostname}
+                </span>{" "}
+                - {selectedNodeInfo.IP_address}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Logs Table */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Live Logs</CardTitle>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`w-2 h-2 rounded-full ${
+                      isStreaming ? "bg-green-500 animate-pulse" : "bg-gray-400"
+                    }`}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {isStreaming ? "Streaming" : "Paused"}
+                  </span>
+                </div>
+                <Badge variant="outline">{filteredLogs.length} logs</Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="border rounded-lg overflow-hidden">
+              <div className="max-h-[600px] overflow-y-auto">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-background z-10">
+                    <TableRow>
+                      <TableHead className="w-[180px]">Timestamp</TableHead>
+                      <TableHead className="w-[100px]">Level</TableHead>
+                      <TableHead>Message</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              <div ref={logsEndRef} />
+                  </TableHeader>
+                  <TableBody>
+                    <tr ref={logsEndRef} />
+                    {filteredLogs.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={3}
+                          className="text-center py-8 text-muted-foreground"
+                        >
+                          {selectedNode
+                            ? isStreaming
+                              ? "Waiting for logs..."
+                              : "Click Start to begin streaming logs"
+                            : "Select a node to view logs"}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredLogs.map((log) => (
+                        <TableRow
+                          key={log.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() =>
+                            setExpandedLog(
+                              expandedLog === log.id ? null : log.id
+                            )
+                          }
+                        >
+                          <TableCell className="font-mono text-xs">
+                            {new Date(log.timestamp).toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={getSeverityColor(log.level)}
+                            >
+                              {log.level}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div
+                              className={
+                                expandedLog === log.id ? "" : "truncate"
+                              }
+                            >
+                              {log.metadata?.raw_log}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -232,3 +400,5 @@ export function LogsExplorer() {
     </div>
   );
 }
+
+export default LogsExplorer;

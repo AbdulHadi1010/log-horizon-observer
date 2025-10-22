@@ -1,125 +1,71 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Activity,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  FileText,
-  Ticket,
-  Users,
-  TrendingUp,
-  TrendingDown,
-  ArrowRight,
-} from "lucide-react";
-
-type Stat = {
-  title: string;
-  value: string;
-  change: string;
-  trend: "up" | "down";
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
-};
+import { AlertTriangle, CheckCircle, FileText, Ticket, Users } from "lucide-react";
 
 type TicketType = {
-  id: string;
-  title: string;
-  status: "critical" | "high" | "medium" | string;
-  assignee: string;
-  created: string;
-};
-
-type LogType = {
-  level: "error" | "warning" | "info" | string;
-  message: string;
-  source: string;
-  timestamp: string;
+   id: string;
+  description: string | null;  // ✅ allow null
+  status: "open" | "in-progress" | "in-queue" | "resolved" | "closed" | "reopened";
+  application: string | null;  // ✅ allow null
+  system_ip: string | null
 };
 
 export function Dashboard() {
-  const stats: Stat[] = [
-    {
-      title: "Open Tickets",
-      value: "23",
-      change: "+12%",
-      trend: "up",
-      icon: Ticket,
-      color: "text-red-500",
-    },
-    {
-      title: "Resolved Today",
-      value: "8",
-      change: "+5%",
-      trend: "up",
-      icon: CheckCircle,
-      color: "text-green-500",
-    },
-    {
-      title: "Active Logs",
-      value: "1,247",
-      change: "-3%",
-      trend: "down",
-      icon: FileText,
-      color: "text-blue-500",
-    },
-    {
-      title: "Team Members",
-      value: "12",
-      change: "+2",
-      trend: "up",
-      icon: Users,
-      color: "text-purple-500",
-    },
-  ];
+  const [stats, setStats] = useState({
+    openTickets: 0,
+    resolvedToday: 0,
+    activeNodes: 0,
+    teamMembers: 0,
+  });
+  const [recentTickets, setRecentTickets] = useState<TicketType[]>([]);
 
-  const recentTickets: TicketType[] = [
-    {
-      id: "INC-001",
-      title: "Database connection timeout",
-      status: "critical",
-      assignee: "Abdul Hadi",
-      created: "2 minutes ago",
-    },
-    {
-      id: "INC-002",
-      title: "API rate limit exceeded",
-      status: "high",
-      assignee: "Noor",
-      created: "15 minutes ago",
-    },
-    {
-      id: "INC-003",
-      title: "Memory usage spike",
-      status: "medium",
-      assignee: "Ahmed",
-      created: "1 hour ago",
-    },
-  ];
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
-  const recentLogs: LogType[] = [
-    {
-      level: "error",
-      message: "Failed to connect to database",
-      source: "api-gateway",
-      timestamp: "14:32:15",
-    },
-    {
-      level: "warning",
-      message: "High memory usage detected",
-      source: "app-server",
-      timestamp: "14:30:42",
-    },
-    {
-      level: "error",
-      message: "Authentication service timeout",
-      source: "auth-service",
-      timestamp: "14:28:33",
-    },
-  ];
+  const fetchDashboardData = async () => {
+    // Open Tickets
+    const { count: openTickets } = await supabase
+      .from("tickets")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "open");
 
-  const getStatusColor = (status: TicketType["status"]) => {
+    // Resolved Today (status = 'resolved')
+    const { count: resolvedToday } = await supabase
+      .from("tickets")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "resolved");
+
+    // Active Nodes
+    const { count: activeNodes } = await supabase
+      .from("system_info")
+      .select("*", { count: "exact", head: true });
+
+    // Team Members
+    const { count: teamMembers } = await supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true });
+
+    // 3 Most Recent Tickets
+    const { data: ticketsData } = await supabase
+      .from("tickets")
+      .select("id, description, status, application, system_ip")
+      .order("created_at", { ascending: false })
+      .limit(3);
+
+    setStats({
+      openTickets: openTickets || 0,
+      resolvedToday: resolvedToday || 0,
+      activeNodes: activeNodes || 0,
+      teamMembers: teamMembers || 0,
+    });
+
+    setRecentTickets(ticketsData || []);
+  };
+
+  const getStatusColor = (status: string) => {
     switch (status) {
       case "critical":
         return "bg-red-100 text-red-800";
@@ -127,23 +73,21 @@ export function Dashboard() {
         return "bg-orange-100 text-orange-800";
       case "medium":
         return "bg-yellow-100 text-yellow-800";
+      case "resolved":
+        return "bg-green-100 text-green-700";
+      case "open":
+        return "bg-yellow-100 text-yellow-700";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
 
-  const getLogLevelColor = (level: LogType["level"]) => {
-    switch (level) {
-      case "error":
-        return "bg-red-100 text-red-800";
-      case "warning":
-        return "bg-yellow-100 text-yellow-800";
-      case "info":
-        return "bg-blue-100 text-blue-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
+  const statsArray = [
+    { title: "Open Tickets", value: stats.openTickets, icon: Ticket, color: "text-red-500" },
+    { title: "Resolved Today", value: stats.resolvedToday, icon: CheckCircle, color: "text-green-500" },
+    { title: "Active Nodes", value: stats.activeNodes, icon: FileText, color: "text-blue-500" },
+    { title: "Team Members", value: stats.teamMembers, icon: Users, color: "text-purple-500" },
+  ];
 
   return (
     <div className="p-6 space-y-6">
@@ -156,48 +100,38 @@ export function Dashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
+        {statsArray.map((stat, index) => (
           <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <stat.icon className={`w-4 h-4 ${stat.color}`} />
+             <stat.icon className={`w-4 h-4 ${stat.color}`} />
+
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stat.value}</div>
-              <div className="flex items-center text-xs text-muted-foreground">
-                {stat.trend === "up" ? (
-                  <TrendingUp className="w-3 h-3 mr-1 text-green-500" />
-                ) : (
-                  <TrendingDown className="w-3 h-3 mr-1 text-red-500" />
-                )}
-                {stat.change} from last week
-              </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
+      {/* Recent Tickets */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Tickets */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader>
             <div>
               <CardTitle>Recent Tickets</CardTitle>
               <CardDescription>
                 Latest incident tickets requiring attention
               </CardDescription>
             </div>
-            <Button variant="outline" size="sm">
-              View All
-              <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {recentTickets.map((ticket) => (
                 <div
                   key={ticket.id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
+                  className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
+                  onClick={() => (window.location.href = "http://localhost:8080/tickets")}
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
@@ -207,11 +141,11 @@ export function Dashboard() {
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground truncate">
-                      {ticket.title}
+                      {ticket.description}
                     </p>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
-                      <span>@{ticket.assignee}</span>
-                      <span>{ticket.created}</span>
+                      <span>{ticket.application || "Unknown App"}</span>
+                      <span>{ticket.system_ip}</span>
                     </div>
                   </div>
                   <AlertTriangle className="w-4 h-4 text-muted-foreground" />
@@ -220,91 +154,7 @@ export function Dashboard() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Recent Logs */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Recent Logs</CardTitle>
-              <CardDescription>
-                Latest system logs and alerts
-              </CardDescription>
-            </div>
-            <Button variant="outline" size="sm">
-              View All
-              <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {recentLogs.map((log, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-3 p-3 border rounded-lg"
-                >
-                  <Activity className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge className={getLogLevelColor(log.level)}>
-                        {log.level}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {log.source}
-                      </span>
-                    </div>
-                    <p className="text-sm truncate">{log.message}</p>
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Clock className="w-3 h-3" />
-                    {log.timestamp}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
-
-      {/* System Health Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle>System Health Overview</CardTitle>
-          <CardDescription>
-            Current status of your key systems and services
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <div>
-                <p className="font-medium">API Gateway</p>
-                <p className="text-sm text-muted-foreground">
-                  All systems operational
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-              <div>
-                <p className="font-medium">Database</p>
-                <p className="text-sm text-muted-foreground">
-                  Minor performance issues
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <div>
-                <p className="font-medium">Authentication</p>
-                <p className="text-sm text-muted-foreground">
-                  All systems operational
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

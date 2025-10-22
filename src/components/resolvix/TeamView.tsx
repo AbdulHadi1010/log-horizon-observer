@@ -23,6 +23,8 @@ import {
   UserCheck,
   UploadCloud
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
 
 type Role = "admin" | "engineer" | "support";
 type Status = "active" | "inactive" | "pending";
@@ -53,7 +55,7 @@ export function TeamView() {
   // Members loaded from Supabase
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
-
+  const { toast } = useToast();
   // Teams (frontend-managed; still map member ids to loaded members)
   const [teams, setTeams] = useState<Team[]>([
     {
@@ -220,11 +222,11 @@ setTeams((prev) =>
     await handleUpdateMemberField(id, "avatar", publicUrl);
 
     // Show success toast
-    setToastMessage("Profile picture uploaded");
+    toast({ title: "Update", description: "Profile picture uploaded." });
     setTimeout(() => setToastMessage(""), 3000);
   } catch (err: any) {
     console.error("Profile picture upload failed:", err);
-    setToastMessage("Failed to upload picture");
+    toast({ title: "Failed", description: "Failed to upload picture." });
     setTimeout(() => setToastMessage(""), 3000);
   }
 };
@@ -259,13 +261,14 @@ setTeams((prev) =>
     });
 
     if (error) throw error;
+     toast({ title: "Sent", description: `Invitation sent to ${newMemberEmail}` });
 
-    setToastMessage(`Invitation sent to ${newMemberEmail}`);
     setNewMemberEmail("");
     setIsInviteOpen(false);
   } catch (err) {
     console.error("Failed to send invitation:", err);
-    setToastMessage("Failed to send invitation");
+     toast({ title: "Failed", description: "Failed to send invitation." });
+
   }
 
   setTimeout(() => setToastMessage(""), 3000);
@@ -522,12 +525,15 @@ setTeams((prev) =>
       setEditBuffer({});
 
       // Show prompt
-      setToastMessage("Changes saved");
+
+       toast({ title: "Profile Updated", description: "Changes saved successfully." });
       setTimeout(() => setToastMessage(""), 3000); // hide after 3s
     } catch (err) {
       console.error("Failed to save changes:", err);
       // Optional: show error toast
-      setToastMessage("Failed to save changes");
+  
+       toast({ title: "Failed", description: "Failed to save changes." });
+
       setTimeout(() => setToastMessage(""), 3000);
     }
   }}

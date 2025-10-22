@@ -1,11 +1,22 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Send, User, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CollapsibleAIAssistant } from "./CollapsibleAIAssistant";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+
 
 interface TicketDetailsProps {
   ticketId: string;
@@ -44,6 +55,11 @@ export function TicketDetails({ ticketId, onBack }: TicketDetailsProps) {
   const [newMessage, setNewMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const chatEndRef = useRef<HTMLDivElement | null>(null);  
+  const [showResolveDialog, setShowResolveDialog] = useState(false);
+  const [solutionText, setSolutionText] = useState("");
+  const { toast } = useToast();
+
+
   const [userCache, setUserCache] = useState<Record<string, string>>({});
   const userCacheRef = useRef<Record<string, string>>({});
 
@@ -219,6 +235,7 @@ useEffect(() => {
 }, [ticketId]);
 
 
+
   const updateTicket = async (field: Partial<Ticket>) => {
     if (!ticket) return;
     const updatedTicket = { ...ticket, ...field };
@@ -284,6 +301,19 @@ useEffect(() => {
       }, 2000);
     });
   };
+     const [editing, setEditing] = useState(false);
+const [tempDescription, setTempDescription] = useState(ticket?.description || "");
+
+useEffect(() => {
+  setTempDescription(ticket?.description || "");
+}, [ticket?.description]);
+
+const handleSaveDescription = async () => {
+  setEditing(false);
+  if (tempDescription !== ticket?.description) {
+    await updateTicket({ description: tempDescription });
+  }
+};
 
   const formatTimestamp = (timestamp: string | null) => {
     if (!timestamp) return "";
@@ -320,9 +350,20 @@ useEffect(() => {
           </div>
 
           {/* Ticket Details Card */}
-          <Card className="shadow-sm">
+          <Card className="shadow-sm transition-all hover:shadow-md">
             <CardContent className="pt-6 space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6"> <div> <label className="text-sm font-medium text-muted-foreground">Status</label> <Select value={ticket.status} onValueChange={(val) => updateTicket({ status: val as Ticket["status"] })}> <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger> <SelectContent> {statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)} </SelectContent> </Select> </div> <div> <label className="text-sm font-medium text-muted-foreground">Priority</label> <Select value={ticket.priority} onValueChange={(val) => updateTicket({ priority: val as Ticket["priority"] })}> <SelectTrigger><SelectValue placeholder="Select priority" /></SelectTrigger> <SelectContent> {priorities.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)} </SelectContent> </Select> </div> <div> <label className="text-sm font-medium text-muted-foreground">Severity</label> <Select value={ticket.severity || ""} onValueChange={(val) => updateTicket({ severity: val })}> <SelectTrigger><SelectValue placeholder="Select severity" /></SelectTrigger> <SelectContent> {severities.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)} </SelectContent> </Select> </div> <div className="md:col-span-1 col-span-2"> <label className="text-sm font-medium text-muted-foreground">Description</label> <Input placeholder="Enter description..." value={ticket.description || ""} onChange={(e) => updateTicket({ description: e.target.value })} className="mt-2" /> </div> </div> 
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6"> <div> <label className="text-sm font-medium text-muted-foreground">Status</label> <Select
+  value={ticket.status}
+  onValueChange={(val) => {
+    if (val === "resolved") {
+      setShowResolveDialog(true);
+    } else {
+      updateTicket({ status: val as Ticket["status"] });
+    }
+  }}
+>
+ <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger> <SelectContent> {statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)} </SelectContent> </Select> </div>
+               <div> <label className="text-sm font-medium text-muted-foreground">Priority</label> <Select value={ticket.priority} onValueChange={(val) => updateTicket({ priority: val as Ticket["priority"] })}> <SelectTrigger><SelectValue placeholder="Select priority" /></SelectTrigger> <SelectContent> {priorities.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)} </SelectContent> </Select> </div> <div> <label className="text-sm font-medium text-muted-foreground">Severity</label> <Select value={ticket.severity || ""} onValueChange={(val) => updateTicket({ severity: val })}> <SelectTrigger><SelectValue placeholder="Select severity" /></SelectTrigger> <SelectContent> {severities.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)} </SelectContent> </Select> </div> </div> 
               {/* Other Details */} <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-4"> <div>
   <label className="text-sm font-medium text-muted-foreground">Assignees</label>
   <p className="mt-2">
@@ -351,56 +392,179 @@ useEffect(() => {
         </Card>
       </div>
 
+     <div className="mt-6 px-6">
+  <Card className="shadow-sm rounded-lg">
+    <CardHeader className="border-b">
+      <CardTitle>Description</CardTitle>
+    </CardHeader>
+    <CardContent className="pt-4">
+      <div className="flex items-start justify-between">
+        {editing ? (
+          <textarea
+            className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+            value={tempDescription}
+            onChange={(e) => setTempDescription(e.target.value)}
+            onBlur={() => handleSaveDescription()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSaveDescription();
+              }
+            }}
+            autoFocus
+          />
+        ) : (
+          <pre
+            className="font-mono text-sm text-black whitespace-pre-wrap break-words flex-1 cursor-pointer"
+            onClick={() => setEditing(true)}
+          >
+            {ticket.description || "Click the pencil to add a description..."}
+          </pre>
+        )}
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setEditing((prev) => !prev)}
+          className="ml-2"
+        >
+          <Pencil className="w-4 h-4" />
+        </Button>
+      </div>
+    </CardContent>
+  </Card>
+</div>
+
       {/* Chat Section */}
       <div className="flex-1 overflow-hidden">
-        <div className="h-full w-full max-w-[60%] p-6">
-          <Card className="h-full flex flex-col">
-            <CardHeader className="border-b">
-              <CardTitle>Team Chat</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col p-0">
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {teamChatMessages.map(msg => (
-                  <div key={msg.id} className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                      {msg.type === 'system' ? <Clock className="w-4 h-4 text-primary-foreground" /> : <User className="w-4 h-4 text-primary-foreground" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium">{msg.userName}</span>
-                        <span className="text-xs text-muted-foreground">{formatTimestamp(msg.timestamp)}</span>
-                      </div>
-                      <p className="text-sm bg-muted/50 rounded-lg p-3 break-words">{msg.message}</p>
-                    </div>
-                  </div>
-                ))}
-                <div ref={chatEndRef} /> {/* <-- Auto-scroll target */}
-              </div>
+  <div className="h-full w-full max-w-[60%] p-6">
+    <Card className="flex flex-col h-[500px]"> {/* ✅ Fixed height here */}
+      <CardHeader className="border-b flex-shrink-0">
+        <CardTitle>Team Chat</CardTitle>
+      </CardHeader>
 
-              <div className="border-t p-4">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Type a message..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    className="flex-1"
-                  />
-                  <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </div>
+      <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
+        {/* ✅ This div scrolls inside the fixed-height card */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {teamChatMessages.map((msg) => (
+            <div key={msg.id} className="flex gap-3">
+              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                {msg.type === "system" ? (
+                  <Clock className="w-4 h-4 text-primary-foreground" />
+                ) : (
+                  <User className="w-4 h-4 text-primary-foreground" />
+                )}
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-medium">{msg.userName}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatTimestamp(msg.timestamp)}
+                  </span>
+                </div>
+                <p className="text-sm bg-muted/50 rounded-lg p-3 break-words">
+                  {msg.message}
+                </p>
+              </div>
+            </div>
+          ))}
+          <div ref={chatEndRef} /> {/* Auto-scroll target */}
         </div>
+
+        {/* ✅ Input area stays fixed at bottom inside card */}
+        <div className="border-t p-4 flex-shrink-0">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Type a message..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+              className="flex-1"
+            />
+            <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  </div>
+
+  <CollapsibleAIAssistant
+    ticketId={ticketId}
+    chatMessages={chatMessages}
+    onSendMessage={handleAiMessage}
+  />
+  </div>
+{/* Resolve Ticket Dialog */}
+<Dialog open={showResolveDialog} onOpenChange={setShowResolveDialog}>
+  <DialogContent className="sm:max-w-[600px]">
+    <DialogHeader>
+      <DialogTitle>Resolve Ticket</DialogTitle>
+    </DialogHeader>
+
+    <div className="space-y-4">
+      <div>
+        <label className="text-sm font-medium text-muted-foreground">Log Line</label>
+        <pre className="font-mono text-sm text-black whitespace-pre-wrap bg-muted/40 p-2 rounded-md mt-1">
+          {ticket.log_line || "No log line available."}
+        </pre>
       </div>
 
-      <CollapsibleAIAssistant
-        ticketId={ticketId}
-        chatMessages={chatMessages}
-        onSendMessage={handleAiMessage}
-      />
+      <div>
+        <label className="text-sm font-medium text-muted-foreground">Solution</label>
+        <Textarea
+          placeholder="Write the solution here..."
+          value={solutionText}
+          onChange={(e) => setSolutionText(e.target.value)}
+          className="mt-1"
+          rows={4}
+        />
+      </div>
     </div>
+
+    <DialogFooter className="mt-4">
+      <Button variant="outline" onClick={() => setShowResolveDialog(false)}>
+        Cancel
+      </Button>
+      <Button
+        onClick={async () => {
+          if (!solutionText.trim()) {
+            toast({ title: "Error", description: "Please provide a solution." });
+            return;
+          }
+
+          // Insert into ticket_resolutions
+          const { error: insertError } = await supabase.from("recommendations").insert([
+            {
+              log_line: ticket.log_line,
+              recommendation: solutionText.trim(),
+            },
+          ]);
+
+          if (insertError) {
+            console.error("Error inserting resolution:", insertError);
+            toast({ title: "Error", description: "Failed to save resolution." });
+            return;
+          }
+
+          // Update ticket status to resolved
+          await updateTicket({ status: "resolved" });
+
+          toast({ title: "Ticket Resolved", description: "Resolution saved successfully." });
+
+          // Close dialog, clear state, and go back to ticket view
+          setShowResolveDialog(false);
+          setSolutionText("");
+          onBack();
+        }}
+      >
+        Save
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
+</div>
   );
 }
