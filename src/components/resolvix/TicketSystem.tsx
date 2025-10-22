@@ -38,8 +38,7 @@ interface TicketSystemProps {
 
 export function TicketSystem({ onTicketSelect }: TicketSystemProps) {
   const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedPriority, setSelectedPriority] = useState("all");
@@ -117,7 +116,6 @@ const [newTicketData, setNewTicketData] = useState<Partial<Ticket>>({
   }));
 
   setTickets(ticketsWithDefaults);
-  setSelectedTicket(ticketsWithDefaults[0] ?? null);
 }
 
 

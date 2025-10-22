@@ -116,21 +116,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchProfile = async (userId: string) => {
     try {
       console.log('Fetching profile for user:', userId);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+      
+      // Fetch profile and role separately (role is now in user_roles table)
+      const [profileResult, roleResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, email, full_name, avatar_url')
+          .eq('id', userId)
+          .maybeSingle(),
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .order('role', { ascending: false }) // Get highest role (admin > engineer > support)
+          .limit(1)
+          .maybeSingle()
+      ]);
 
-      if (error) {
-        console.error('Error fetching profile:', error);
+      if (profileResult.error) {
+        console.error('Error fetching profile:', profileResult.error);
         setLoading(false);
         return;
       }
 
-      if (data) {
-        console.log('Profile fetched:', data);
-        setProfile(data);
+      if (profileResult.data) {
+        const role = roleResult.data?.role || 'support'; // Default to support if no role found
+        console.log('Profile fetched:', { ...profileResult.data, role });
+        setProfile({ ...profileResult.data, role });
       } else {
         console.log('No profile found for user:', userId);
         setProfile(null);

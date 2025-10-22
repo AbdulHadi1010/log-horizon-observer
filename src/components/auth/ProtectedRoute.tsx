@@ -36,9 +36,9 @@ export function ProtectedRoute({
     return <Navigate to="/login" replace />;
   }
 
-  // Check role requirements
+  // Check role requirements using server-validated role from user_roles table
   if (requiredRole && profile?.role !== requiredRole) {
-    // Check role hierarchy: admin > engineer > viewer
+    // Check role hierarchy: admin > engineer > support
     const roleHierarchy: Record<UserRole, number> = {
       support: 1,
       engineer: 2,
@@ -49,7 +49,7 @@ export function ProtectedRoute({
     const requiredRoleLevel = roleHierarchy[requiredRole];
 
     if (userRoleLevel < requiredRoleLevel) {
-      console.log('Insufficient role, redirecting to unauthorized...');
+      console.log('Insufficient role (server-validated), redirecting to unauthorized...');
       return <Navigate to="/unauthorized" replace />;
     }
   }
